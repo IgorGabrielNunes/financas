@@ -1,0 +1,120 @@
+:root {
+  --bg: #e9eeec;
+  --surface: #ffffff;
+  --surface-2: #f4f7f6;
+  --ink: #1c2b2a;
+  --ink-2: #4a5b59;
+  --ink-3: #7a8a88;
+  --line: #d3dcd9;
+  --entra: #1f7a5a;      /* dinheiro que entra / sobra */
+  --sai: #9e2b4f;        /* crédito, dívida, falta */
+  --previsto: #a76a12;   /* ainda não aconteceu */
+  --foco: #2d6cdf;
+  --raio-s: 6px;
+  --raio-m: 12px;
+  --display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --texto: 'Public Sans', system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111b1a;
+    --surface: #1a2625;
+    --surface-2: #213130;
+    --ink: #e4ecea;
+    --ink-2: #a9b8b5;
+    --ink-3: #7d8e8b;
+    --line: #2e3f3d;
+    --entra: #5cc59c;
+    --sai: #e07a9b;
+    --previsto: #e0a84a;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+html, body { overflow-x: clip; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--texto);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; letter-spacing: -0.01em; line-height: 1.15; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ------------------------------------------------------------- estrutura */
+.pagina { max-width: 1040px; margin: 0 auto; padding: 24px 20px 120px; display: grid; gap: 28px; }
+.cabecalho { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cabecalho p { color: var(--ink-2); }
+.secao { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.secao > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.secao > header span { color: var(--ink-2); font-size: 0.875rem; }
+.grade-2 { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+
+.painel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio-m); }
+.painel.recheado { padding: 18px; }
+
+/* ----------------------------------------------------------------- listas */
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista > li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.lista > li:first-child { border-top: 0; }
+.lista > li.clicavel { cursor: pointer; }
+.lista > li.clicavel:hover { background: var(--surface-2); }
+.lista .titulo { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista .meta { color: var(--ink-3); font-size: 0.8125rem; }
+.lista .valor { text-align: right; font-weight: 600; white-space: nowrap; }
+.vazio { padding: 28px 16px; text-align: center; color: var(--ink-2); display: grid; gap: 12px; justify-items: center; }
+
+.pin { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); }
+.entra { color: var(--entra); }
+.sai { color: var(--sai); }
+.previsto { color: var(--previsto); }
+.suave { color: var(--ink-2); }
+.miudo { font-size: 0.8125rem; }
+
+.selo { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.selo.previsto { color: var(--previsto); border-color: color-mix(in srgb, var(--previsto) 40%, transparent); }
+.selo.vencida { color: var(--sai); border-color: color-mix(in srgb, var(--sai) 40%, transparent); }
+.selo.paga { color: var(--entra); border-color: color-mix(in srgb, var(--entra) 40%, transparent); }
+
+/* ---------------------------------------------------------------- botões */
+.btn { font: 600 0.9rem var(--texto); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 10px 16px; border-radius: var(--raio-s); cursor: pointer; display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 42px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primario { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primario:hover { opacity: 0.9; }
+.btn.perigo { color: var(--sai); }
+.btn.link { border: 0; background: none; padding: 4px; min-height: 0; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* -------------------------------------------------------------- formulário */
+.form { display: grid; gap: 14px; }
+.form .linha { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.campo { display: grid; gap: 4px; min-width: 0; }
+.campo > span { font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.campo small { color: var(--ink-3); font-size: 0.75rem; }
+input, select, textarea {
+  font: 400 1rem var(--texto); color: var(--ink); background: var(--surface); width: 100%;
+  border: 1px solid var(--line); border-radius: var(--raio-s); padding: 10px 12px; min-height: 42px; min-width: 0;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--foco); outline-offset: -1px; }
+.erro-form { color: var(--sai); font-size: 0.875rem; }
+
+.segmentado { display: flex; border: 1px solid var(--line); border-radius: var(--raio-s); overflow: hidden; }
+.segmentado button { flex: 1; font: 600 0.875rem var(--texto); padding: 9px 6px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.segmentado button + button { border-left: 1px solid var(--line); }
+.segmentado button[aria-pressed='true'] { background: var(--ink); color: var(--bg); }
+
+/* ------------------------------------------------------------- utilitários */
+.medidor { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.medidor > i { display: block; height: 100%; background: var(--sai); border-radius: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

@@ -1,0 +1,33 @@
+# Blueprint do Render: só a API. Banco no Neon (não expira), comprovantes no Cloudflare R2, front na Vercel.
+services:
+  - type: web
+    name: caixa-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start          # aplica as migrations no boot (com advisory lock)
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false                  # connection string do Neon (com ?sslmode=require)
+      - key: DATABASE_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false                  # https://seu-app.vercel.app  (sem barra no fim)
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_ENDPOINT
+        sync: false                  # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        value: caixa-comprovantes
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
