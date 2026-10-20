@@ -6,6 +6,8 @@ vi.hoisted(() => {
   process.env.TELEGRAM_BOT_TOKEN = 'teste:token';
   process.env.TELEGRAM_BOT_USERNAME = 'VidaTesteBot';
   process.env.TELEGRAM_WEBHOOK_SECRET = 'segredo-do-webhook-de-teste';
+  process.env.BREVO_API_KEY = 'brevo-teste';
+  process.env.EMAIL_REMETENTE = 'vida@teste.local';
 });
 
 import { buildApp } from './app.js';
@@ -258,6 +260,39 @@ describe('Telegram e grupo da casa', () => {
     await dispararAvisos(consultar, { agora: as('09:00'), enviar: async (destino, texto) => { enviados.push({ destino, texto }); } });
     const msg = enviados.find((e) => e.destino.chat_id === '-100123' && e.texto.startsWith('👤 *Laura*'))!;
     expect(msg.texto).toBe('👤 *Laura*\n💊 09:00 — hora de 1 remédio.'); // discreto: o grupo não vê o nome do remédio
+  });
+
+  it('e-mail: aviso pessoal vai para o e-mail de login (ou outro informado) com assunto', async () => {
+    await pool.query('delete from notif_enviadas where dono = $1', [igorId]); // simula um dia novo (o resumo de hoje já saiu)
+    const r = await igor('PUT', '/avisos/config', { ativo: true, canal: 'email', resumo_hora: '05:00' });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ email_disponivel: true, email_login: `igor-av-${sufixo}@teste.local` });
+    const enviados: { destino: any; texto: string; assunto?: string }[] = [];
+    await dispararAvisos(consultar, { agora: as('05:00'), enviar: async (destino, texto, assunto) => { enviados.push({ destino, texto, assunto }); } });
+    const m = enviados.find((e) => e.destino.canal === 'email' && e.destino.para[0].email === `igor-av-${sufixo}@teste.local`)!;
+    expect(m.assunto).toBe(`☀️ Seu dia — ${hoje.slice(8, 10)}/${hoje.slice(5, 7)}`);
+    expect(m.texto).toContain('Bom dia, Igor!');
+    // e-mail alternativo
+    await igor('PUT', '/avisos/config', { ativo: true, canal: 'email', email_destino: 'Outro@Teste.local', resumo_hora: '05:00' });
+    await pool.query(`insert into saude_remedios (user_id, nome, horarios) values ($1, 'Teste e-mail', '{05:30}')`, [igorId]);
+    const e2: any[] = [];
+    await dispararAvisos(consultar, { agora: as('05:30'), enviar: async (destino) => { e2.push(destino); } });
+    expect(e2.some((d) => d.canal === 'email' && d.para[0].email === 'outro@teste.local')).toBe(true);
+  });
+
+  it('resumo da casa por e-mail para todos, além do Telegram (chaves separadas)', async () => {
+    await igor('PUT', '/avisos/casa', { ativo: true, resumo_hora: '10:00', avisar_tarefas: true, avisar_contas: true, dias_antes_contas: 1, enviar_email: true });
+    const enviados: { destino: any; assunto?: string }[] = [];
+    const f = async (destino: any, _t: string, assunto?: string) => { enviados.push({ destino, assunto }); };
+    const r = await dispararAvisos(consultar, { agora: as('10:00'), enviar: f });
+    // o Telegram já recebeu o resumo de hoje (teste das 08:00): só o e-mail sai, com chave própria
+    expect(r.find((x) => x.dono === casaId)!.enviados).toEqual([`casa:resumo:${hoje}:email`]);
+    const email = enviados.find((e) => e.destino.canal === 'email' && e.destino.para.length === 2)!;
+    expect(email.destino.para.map((p: any) => p.nome).sort()).toEqual(['Igor Gabriel', 'Laura']);
+    expect(email.assunto).toMatch(/^🏠 Casa — /);
+    // não repete
+    await dispararAvisos(consultar, { agora: as('10:05'), enviar: f });
+    expect(enviados.filter((e) => e.destino.canal === 'email' && e.destino.para.length === 2)).toHaveLength(1);
   });
 
   it('canal grupo exige o grupo vinculado', async () => {

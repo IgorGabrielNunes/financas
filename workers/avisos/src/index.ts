@@ -10,6 +10,10 @@ import type { Consultar } from '../../../backend/src/modulos/avisos/coleta.js';
 export interface Env {
   DATABASE_URL: string;
   TELEGRAM_BOT_TOKEN?: string;
+  BREVO_API_KEY?: string;
+  EMAIL_REMETENTE?: string;
+  EMAIL_REMETENTE_NOME?: string;
+  APP_URL?: string;
 }
 
 export async function executar(env: Env, agora: Date) {
@@ -17,7 +21,13 @@ export async function executar(env: Env, agora: Date) {
   const pool = new Pool({ connectionString: env.DATABASE_URL, max: 1 });
   const consultar: Consultar = async (texto, params = []) => (await pool.query(texto, params)).rows;
   try {
-    const r = await dispararAvisos(consultar, { agora, envio: { telegramToken: env.TELEGRAM_BOT_TOKEN } });
+    const r = await dispararAvisos(consultar, {
+      agora,
+      envio: {
+        telegramToken: env.TELEGRAM_BOT_TOKEN,
+        email: { brevoKey: env.BREVO_API_KEY, remetente: env.EMAIL_REMETENTE, remetenteNome: env.EMAIL_REMETENTE_NOME ?? 'Vida', appUrl: env.APP_URL?.replace(/\/+$/, '') },
+      },
+    });
     const enviados = r.reduce((s, x) => s + x.enviados.length, 0);
     const erros = r.flatMap((x) => x.erros.map((e) => `${x.tipo}:${x.dono.slice(0, 8)} ${e}`));
     // aparece em Workers → vida-avisos → Logs (observability)

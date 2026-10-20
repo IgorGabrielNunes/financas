@@ -123,16 +123,16 @@ No Render, troque `CORS_ORIGIN` para o domínio da Vercel, exatamente como apare
   Se o tempo de acordar incomodar, o plano Starter do Render resolve só para esta API.
 - **Backup:** faça `pg_dump "<connection string>" > caixa-AAAA-MM-DD.sql` periodicamente (cliente `pg_dump` 16+).
 
-## Avisos (WhatsApp e Telegram) — custo zero
+## Avisos (WhatsApp, Telegram e e-mail) — custo zero
 
 ```
-Cloudflare Worker (cron a cada 5 min) ──► Neon (lê o dia de cada um) ──► WhatsApp (CallMeBot) / Telegram
+Cloudflare Worker (cron a cada 5 min) ──► Neon (lê o dia de cada um) ──► WhatsApp (CallMeBot) / Telegram / E-mail (Brevo)
 API no Render ──► configuração, prévia, "enviar teste" e webhook do robô do Telegram
 ```
 
-- **Pessoais**: cada usuário escolhe o canal e o que quer receber em **Avisos** (menu lateral → Avisos no WhatsApp):
+- **Pessoais**: cada usuário escolhe o canal (WhatsApp, Telegram, grupo da casa ou e-mail) e o que quer receber em **Avisos** (menu lateral → Avisos no WhatsApp):
   resumo do dia, hora do treino, remédios, consultas, entrevistas e refeições, com "não perturbe" e modo discreto.
-- **Grupo da casa** (Telegram): resumo diário das tarefas compartilhadas e das contas/faturas vencendo.
+- **Resumo da casa** (grupo no Telegram e/ou e-mail para todos): tarefas compartilhadas e contas/faturas vencendo.
   Cada pessoa também pode escolher o canal **Grupo** para os avisos pessoais: chegam no mesmo grupo com o nome no topo
   ("👤 Igor — hora do treino"). Como todos leem, o modo discreto é recomendado para remédios e consultas.
   WhatsApp grátis não envia para grupos (limite do CallMeBot), por isso o grupo é no Telegram.
@@ -155,14 +155,27 @@ API no Render ──► configuração, prévia, "enviar teste" e webhook do rob
    e `PUBLIC_API_URL` (de produção) no `backend/.env`, rode `npm run telegram:webhook`.
 4. Em **Avisos**: "Gerar link de vínculo" (pessoal) e, como admin, "Gerar código do grupo" (adicione o robô ao grupo pelo link).
 
-### 3. Worker na Cloudflare (dispara os avisos)
+### 3. E-mail (opcional — Brevo, grátis até 300 e-mails/dia)
+1. Crie a conta em brevo.com (plano Free). Em **Senders & IP → Senders**, adicione e confirme o e-mail remetente
+   (pode ser o seu Gmail; sem domínio próprio).
+2. Em **SMTP & API → API Keys**, gere uma chave.
+3. Render (financas-api → Environment): `BREVO_API_KEY`, `EMAIL_REMETENTE` (o e-mail confirmado) e, opcional,
+   `APP_URL` (endereço do front, para o link "Abrir o Vida" nos e-mails).
+4. No Worker, adicione os mesmos `BREVO_API_KEY`, `EMAIL_REMETENTE` e `APP_URL` como **Secret** (passo 4 abaixo).
+5. Em **Avisos**: canal **E-mail** (pessoal) e/ou "Também por e-mail para todos da casa" (resumo da casa).
+
+Como o remetente é um Gmail enviado por outro servidor, os primeiros e-mails podem cair no spam: marque "não é spam"
+uma vez. Com um domínio próprio verificado no Brevo isso some (um .com.br custa por volta de R$ 40 por ano).
+
+### 4. Worker na Cloudflare (dispara os avisos)
 1. Crie uma conta grátis em cloudflare.com (não precisa de cartão para Workers).
 2. **My Profile → API Tokens → Create Token → modelo "Edit Cloudflare Workers"**. Copie o token e o **Account ID**
    (aparece na página inicial de Workers & Pages).
 3. No GitHub: **Settings → Secrets and variables → Actions** → crie `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
 4. **Actions → Worker de avisos → Run workflow**. Ele roda os testes da regra e publica o `vida-avisos`.
-5. Na Cloudflare: **Workers & Pages → vida-avisos → Settings → Variables and Secrets**, adicione como *Secret*:
-   `DATABASE_URL` (a mesma connection string do Neon da API) e, se usar Telegram, `TELEGRAM_BOT_TOKEN`.
+5. Na Cloudflare: **Workers & Pages → vida-avisos → Settings → Variables and Secrets**, adicione **sempre como Secret**
+   (variável comum criada no painel é apagada a cada deploy): `DATABASE_URL` (a mesma connection string do Neon da API),
+   e conforme os canais que usar: `TELEGRAM_BOT_TOKEN`, `BREVO_API_KEY`, `EMAIL_REMETENTE`, `APP_URL`.
 6. Acompanhe em **vida-avisos → Logs**: a cada 5 minutos aparece `{"enviados":N,"erros":[...]}`.
 
 Limites do plano grátis que importam: Workers 100 mil requisições/dia e 5 crons por conta (usamos 1);

@@ -8,12 +8,12 @@ import type { ConfigAvisos, DadosCasa, DadosDoDia } from './dominio.js';
 export type Consultar = <T = any>(sql: string, params?: unknown[]) => Promise<T[]>;
 
 export const SELECT_CONFIG = `
-  select c.*, u.nome, u.casa_id, g.telegram_chat_id as grupo_chat_id
+  select c.*, u.nome, u.casa_id, u.email as email_login, g.telegram_chat_id as grupo_chat_id
     from notif_config c join usuarios u on u.id = c.user_id
     left join notif_casa g on g.casa_id = u.casa_id
    where c.ativo and u.ativo`;
 
-export const SELECT_CASAS = `select * from notif_casa where ativo and telegram_chat_id is not null`;
+export const SELECT_CASAS = `select * from notif_casa where ativo and (telegram_chat_id is not null or enviar_email)`;
 
 export async function coletarDia(q: Consultar, cfg: Pick<ConfigAvisos, 'user_id'> & { casa_id: string }, dia: string): Promise<DadosDoDia> {
   const u = cfg.user_id;

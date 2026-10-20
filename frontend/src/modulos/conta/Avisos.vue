@@ -4,7 +4,7 @@ import { api } from '../../core/api';
 import { avisar, sessao } from '../../core/store';
 
 type Config = {
-  ativo: boolean; canal: 'callmebot' | 'telegram' | 'grupo'; telefone: string | null; discreto: boolean; resumo_hora: string | null;
+  ativo: boolean; canal: 'callmebot' | 'telegram' | 'grupo' | 'email'; email_destino: string | null; email_login: string | null; email_disponivel: boolean; telefone: string | null; discreto: boolean; resumo_hora: string | null;
   antecedencia_min: number; avisar_treino: boolean; avisar_remedios: boolean; avisar_consultas: boolean; avisar_entrevistas: boolean;
   avisar_refeicoes: boolean; silencio_inicio: string | null; silencio_fim: string | null;
   tem_apikey: boolean; telegram_vinculado: boolean; grupo_vinculado: boolean; telegram_disponivel: boolean; telegram_robo: string | null;
@@ -13,6 +13,7 @@ type Previa = { sai_as: string; tipo: string; texto: string };
 type Casa = {
   ativo: boolean; resumo_hora: string; avisar_tarefas: boolean; avisar_contas: boolean; dias_antes_contas: number;
   grupo_vinculado: boolean; titulo_grupo: string | null; telegram_disponivel: boolean; telegram_robo: string | null; previa: Previa[];
+  enviar_email: boolean; email_disponivel: boolean;
 };
 
 const CALLMEBOT = '+34 621 331 709';
@@ -46,7 +47,7 @@ async function salvar(ativar?: boolean) {
   try {
     cfg.value = await api.put<Config>('/avisos/config', {
       ativo: ativar ?? c.ativo, canal: c.canal, telefone: c.telefone?.replace(/[^\d+]/g, '') || null,
-      apikey: f.apikey.trim() || undefined, discreto: c.discreto,
+      apikey: f.apikey.trim() || undefined, discreto: c.discreto, email_destino: c.email_destino?.trim() || null,
       resumo_hora: f.usarResumo ? c.resumo_hora : null, antecedencia_min: Number(c.antecedencia_min),
       avisar_treino: c.avisar_treino, avisar_remedios: c.avisar_remedios, avisar_consultas: c.avisar_consultas,
       avisar_entrevistas: c.avisar_entrevistas, avisar_refeicoes: c.avisar_refeicoes,
@@ -70,18 +71,20 @@ async function salvarCasa(ativar?: boolean) {
   if (!casa.value) return;
   const k = casa.value;
   try {
-    await api.put('/avisos/casa', { ativo: ativar ?? k.ativo, resumo_hora: k.resumo_hora, avisar_tarefas: k.avisar_tarefas, avisar_contas: k.avisar_contas, dias_antes_contas: Number(k.dias_antes_contas) });
-    avisar('Grupo da casa salvo');
+    await api.put('/avisos/casa', { ativo: ativar ?? k.ativo, resumo_hora: k.resumo_hora, avisar_tarefas: k.avisar_tarefas, avisar_contas: k.avisar_contas, dias_antes_contas: Number(k.dias_antes_contas), enviar_email: k.enviar_email });
+    avisar('Resumo da casa salvo');
     await carregar();
   } catch (e) { avisar((e as Error).message, 'erro'); }
 }
 /** Prévia como a mensagem chega: *negrito* do WhatsApp vira <b> (texto escapado antes; nada de HTML do usuário passa). */
 const formatar = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+const casaLigada = computed(() => !!casa.value?.ativo && (casa.value.grupo_vinculado || casa.value.enviar_email));
 const prontoWhats = computed(() => !!cfg.value?.telefone && (cfg.value.tem_apikey || !!f.apikey.trim()));
 /** O canal escolhido tem tudo para enviar? (WhatsApp: número + chave; Telegram: chat vinculado; grupo: grupo vinculado) */
 const canalPronto = computed(() => {
   const c = cfg.value;
   if (!c) return false;
+  if (c.canal === 'email') return c.email_disponivel;
   return c.canal === 'callmebot' ? prontoWhats.value : c.canal === 'telegram' ? c.telegram_vinculado : c.grupo_vinculado;
 });
 </script>
@@ -108,6 +111,7 @@ const canalPronto = computed(() => {
           <button :aria-pressed="cfg.canal === 'callmebot'" @click="cfg.canal = 'callmebot'">WhatsApp</button>
           <button :aria-pressed="cfg.canal === 'telegram'" @click="cfg.canal = 'telegram'">Telegram</button>
           <button :aria-pressed="cfg.canal === 'grupo'" @click="cfg.canal = 'grupo'">Grupo</button>
+          <button :aria-pressed="cfg.canal === 'email'" @click="cfg.canal = 'email'">E-mail</button>
         </div>
 
         <template v-if="cfg.canal === 'callmebot'">
@@ -123,6 +127,15 @@ const canalPronto = computed(() => {
             </label>
           </div>
           <p class="suave miudo">Só manda para o seu próprio número. As mensagens passam pelo servidor do CallMeBot: se não quiser que ele veja nomes de consultas ou remédios, ligue o <b>modo discreto</b> abaixo.</p>
+        </template>
+
+        <template v-else-if="cfg.canal === 'email'">
+          <p v-if="!cfg.email_disponivel" class="aviso">O envio de e-mail ainda não foi configurado no servidor (veja o README: "Avisos").</p>
+          <label class="campo"><span>Enviar para</span>
+            <input v-model="cfg.email_destino" type="email" inputmode="email" :placeholder="cfg.email_login ?? 'seu@email.com'" />
+            <small>Em branco: o e-mail de login ({{ cfg.email_login }}).</small>
+          </label>
+          <p class="suave miudo">Bom para o resumo do dia. Para avisos na hora (remédio, treino), WhatsApp ou Telegram chegam mais rápido que o e-mail. Na primeira mensagem, confira o spam e marque "não é spam".</p>
         </template>
 
         <template v-else-if="cfg.canal === 'grupo'">
@@ -194,14 +207,16 @@ const canalPronto = computed(() => {
       </section>
     </template>
 
-    <!-- ------------------------------------------------------------ grupo da casa -->
+    <!-- ------------------------------------------------------------ resumo da casa -->
     <section v-if="casa" class="painel bloco">
       <div class="linha-topo">
-        <h2>Grupo da casa (Telegram)</h2>
-        <span :class="['selo', casa.ativo && casa.grupo_vinculado ? 'paga' : '']">{{ casa.ativo && casa.grupo_vinculado ? 'Ligado' : 'Desligado' }}</span>
+        <h2>Resumo da casa</h2>
+        <span :class="['selo', casaLigada ? 'paga' : '']">{{ casaLigada ? 'Ligado' : 'Desligado' }}</span>
       </div>
-      <p class="suave">Resumo diário para todos: tarefas compartilhadas (com o responsável) e contas/faturas vencendo. WhatsApp grátis não manda para grupos, por isso o grupo é no Telegram.</p>
-      <p v-if="!casa.telegram_disponivel" class="aviso">O robô do Telegram ainda não foi configurado no servidor.</p>
+      <p class="suave">Para todos da casa, uma vez por dia: tarefas compartilhadas (com o responsável) e contas/faturas vencendo. Vai para o grupo do Telegram e/ou por e-mail.</p>
+
+      <h3 class="sub">Grupo no Telegram</h3>
+      <p v-if="!casa.telegram_disponivel" class="suave miudo">O robô do Telegram ainda não foi configurado no servidor.</p>
       <template v-else-if="!casa.grupo_vinculado">
         <ol v-if="admin" class="passos">
           <li>Crie um grupo no Telegram com quem mora com você.</li>
@@ -215,8 +230,16 @@ const canalPronto = computed(() => {
           <button class="btn-link" @click="carregar">Já mandei, atualizar</button>
         </div>
       </template>
-      <template v-else>
-        <p>✅ Grupo vinculado{{ casa.titulo_grupo ? `: ${casa.titulo_grupo}` : '' }}.</p>
+      <p v-else>✅ Grupo vinculado{{ casa.titulo_grupo ? `: ${casa.titulo_grupo}` : '' }}.</p>
+
+      <h3 class="sub">E-mail</h3>
+      <label v-if="casa.email_disponivel" class="opcao">
+        <input v-model="casa.enviar_email" type="checkbox" :disabled="!admin" />
+        <span><b>Também por e-mail para todos da casa</b><small>Cada um recebe no e-mail de login.</small></span>
+      </label>
+      <p v-else class="suave miudo">O envio de e-mail ainda não foi configurado no servidor (veja o README: "Avisos").</p>
+
+      <template v-if="casa.grupo_vinculado || casa.email_disponivel">
         <fieldset :disabled="!admin" class="campos-casa">
           <div class="linha">
             <label class="campo"><span>Horário do resumo</span><input v-model="casa.resumo_hora" type="time" /></label>
@@ -228,12 +251,12 @@ const canalPronto = computed(() => {
           <label class="opcao"><input v-model="casa.avisar_contas" type="checkbox" /><span><b>Contas e faturas vencendo</b></span></label>
         </fieldset>
         <div v-if="admin" class="acoes">
-          <button class="btn" @click="testar('/avisos/casa/teste')">Testar</button>
+          <button class="btn" :disabled="!(casa.grupo_vinculado || casa.enviar_email)" @click="salvarCasa().then(() => testar('/avisos/casa/teste'))">Salvar e testar</button>
           <button v-if="casa.ativo" class="btn perigo" @click="salvarCasa(false)">Desligar</button>
-          <button class="btn primario" @click="salvarCasa(true)">{{ casa.ativo ? 'Salvar' : 'Ligar' }}</button>
+          <button class="btn primario" :disabled="!(casa.grupo_vinculado || casa.enviar_email)" @click="salvarCasa(true)">{{ casa.ativo ? 'Salvar' : 'Ligar' }}</button>
         </div>
         <template v-if="casa.previa.length">
-          <h3 class="sub">Hoje o grupo receberia ({{ casa.previa[0].sai_as }})</h3>
+          <h3 class="sub">Hoje a casa receberia ({{ casa.previa[0].sai_as }})</h3>
           <div class="mensagem" v-html="formatar(casa.previa[0].texto)" />
         </template>
       </template>
@@ -245,7 +268,10 @@ const canalPronto = computed(() => {
 .bloco { padding: 18px 20px; display: grid; gap: 14px; }
 .bloco h2 { font-size: 1.05rem; margin: 0; }
 .linha-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.canal { justify-self: start; }
+/* 4 canais: grade de colunas iguais, sem quebrar palavra; no celular estreito a fonte encolhe um pouco */
+.canal { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); justify-self: stretch; max-width: 460px; }
+.canal button { white-space: nowrap; padding-inline: 6px; }
+@media (max-width: 400px) { .canal button { font-size: 0.82rem; padding-inline: 2px; } }
 .passos { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); }
 code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-size: 0.85em; overflow-wrap: anywhere; }
 .aviso { margin: 0; padding: 10px 12px; border-radius: var(--raio-s); background: var(--previsto-tint); color: var(--previsto); }
@@ -253,9 +279,11 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .opcao { display: flex; gap: 12px; align-items: center; cursor: pointer; min-height: 44px; }
 .opcao > input[type='checkbox'] { width: 20px; height: 20px; min-height: 0; flex: none; accent-color: var(--marca); }
-.opcao > span { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.opcao > span { display: grid; gap: 1px; flex: 1 1 200px; min-width: 0; } /* abaixo de 200px, o horário desce */
 .opcao small { color: var(--ink-3); font-size: 0.8rem; }
+.opcao { flex-wrap: wrap; }
 .opcao .hora { width: auto; flex: none; }
+@media (max-width: 420px) { .opcao .hora { margin-left: 32px; } }
 .secao > header h2 { font-size: 1rem; margin: 0; }
 .lista > li.previa { grid-template-columns: 52px minmax(0, 1fr); align-items: start; }
 .hora-previa { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); padding-top: 1px; }

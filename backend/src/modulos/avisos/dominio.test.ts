@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agoraSP, avisosCasa, avisosDevidos, emSilencio, type ConfigAvisos, type DadosDoDia } from './dominio.js';
-import { paraTelegramHtml } from './provedor.js';
+import { enviarMensagem, htmlEmail, paraTelegramHtml } from './provedor.js';
 
 const cfg = (o: Partial<ConfigAvisos> = {}): ConfigAvisos => ({
   user_id: 'u1', nome: 'Igor Gabriel', discreto: false, resumo_hora: '07:00', antecedencia_min: 60,
@@ -129,5 +129,33 @@ describe('utilitários', () => {
   });
   it('negrito do WhatsApp vira HTML no Telegram, escapando o resto', () => {
     expect(paraTelegramHtml('Às *14:30* <script> & ok')).toBe('Às <b>14:30</b> &lt;script&gt; &amp; ok');
+  });
+});
+
+describe('e-mail (Brevo)', () => {
+  it('HTML escapa o texto e mantém negrito e quebras de linha', () => {
+    const h = htmlEmail('Às *14:30*\n<img src=x onerror=alert(1)>', 'https://vida.app');
+    expect(h).toContain('Às <b>14:30</b><br>&lt;img src=x onerror=alert(1)&gt;');
+    expect(h).toContain('href="https://vida.app/conta/avisos"');
+    expect(h).not.toContain('<img');
+  });
+
+  it('chama a API do Brevo com remetente, destinatários, assunto e texto puro', async () => {
+    const chamadas: any[] = [];
+    const f = (async (url: string, init: any) => { chamadas.push({ url, init }); return new Response('{"messageId":"1"}', { status: 201 }); }) as any;
+    await enviarMensagem({ canal: 'email', para: [{ email: 'igor@x.com', nome: 'Igor' }, { email: 'laura@x.com', nome: 'Laura' }] },
+      '💊 *Vitamina D*', { email: { brevoKey: 'k', remetente: 'vida@x.com' }, fetch: f }, 'Assunto');
+    expect(chamadas[0].url).toBe('https://api.brevo.com/v3/smtp/email');
+    expect(chamadas[0].init.headers['api-key']).toBe('k');
+    const body = JSON.parse(chamadas[0].init.body);
+    expect(body).toMatchObject({ sender: { email: 'vida@x.com', name: 'Vida' }, subject: 'Assunto', textContent: '💊 Vitamina D' });
+    expect(body.to.map((t: any) => t.email)).toEqual(['igor@x.com', 'laura@x.com']);
+  });
+
+  it('erro do Brevo vira mensagem legível; sem configuração, avisa', async () => {
+    const f = (async () => new Response('{"message":"Sender not valid"}', { status: 400 })) as any;
+    await expect(enviarMensagem({ canal: 'email', para: [{ email: 'a@x.com', nome: 'A' }] }, 't', { email: { brevoKey: 'k', remetente: 'v@x.com' }, fetch: f }))
+      .rejects.toThrow('E-mail (Brevo) recusou (400): Sender not valid');
+    await expect(enviarMensagem({ canal: 'email', para: [] }, 't', {})).rejects.toThrow('E-mail não configurado');
   });
 });

@@ -1,11 +1,13 @@
--- Avisos. Pessoais (cada usuário: WhatsApp via CallMeBot, Telegram privado ou o grupo da casa) e da casa (grupo no Telegram).
+-- Avisos. Pessoais (cada usuário: WhatsApp via CallMeBot, Telegram privado, grupo da casa ou e-mail)
+-- e da casa (grupo no Telegram e/ou e-mail para todos).
 create table notif_config (
   user_id          uuid primary key references usuarios(id) on delete cascade,
   ativo            boolean not null default false,
-  canal            text not null default 'callmebot' check (canal in ('callmebot','telegram','grupo')),  -- grupo = grupo da casa no Telegram
+  canal            text not null default 'callmebot' check (canal in ('callmebot','telegram','grupo','email')),  -- grupo = grupo da casa no Telegram
   telefone         text check (telefone is null or telefone ~ '^\+?[0-9]{10,15}$'),
   apikey           text,                          -- chave do CallMeBot (nunca volta para o front)
   telegram_chat_id text,                          -- preenchido ao vincular pelo robô
+  email_destino    text check (email_destino is null or email_destino ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),  -- null = e-mail de login
   discreto         boolean not null default false,-- sem detalhes (nomes de consultas/remédios) na mensagem
   resumo_hora      text check (resumo_hora is null or resumo_hora ~ '^[0-2][0-9]:[0-5][0-9]$'),  -- null = sem resumo
   antecedencia_min smallint not null default 60 check (antecedencia_min between 5 and 1440),
@@ -25,6 +27,7 @@ create table notif_casa (
   ativo            boolean not null default false,
   telegram_chat_id text,
   titulo_grupo     text,
+  enviar_email     boolean not null default false,  -- resumo também por e-mail para todos da casa
   resumo_hora      text not null default '08:00' check (resumo_hora ~ '^[0-2][0-9]:[0-5][0-9]$'),
   avisar_tarefas   boolean not null default true,
   avisar_contas    boolean not null default true,
