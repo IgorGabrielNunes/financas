@@ -1,0 +1,21 @@
+# Worker que dispara os avisos do Vida (WhatsApp/Telegram) a cada 5 minutos.
+# Lê o Neon direto: não acorda a API no Render (não gasta as horas grátis de lá).
+name = "vida-avisos"
+main = "src/index.ts"
+compatibility_date = "2026-09-15"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+
+# Segredos (nunca no arquivo): rode uma vez, de dentro desta pasta:
+#   npx wrangler secret put DATABASE_URL         (a mesma connection string do Neon da API)
+#   npx wrangler secret put TELEGRAM_BOT_TOKEN   (opcional: só se usar Telegram)
+#   npx wrangler secret put BREVO_API_KEY        (opcional: só se usar e-mail)
+#   npx wrangler secret put EMAIL_REMETENTE      (o e-mail verificado no Brevo)
+#   npx wrangler secret put APP_URL              (opcional: link "Abrir o Vida" nos e-mails)
+# Use SEMPRE "Secret" (no painel: Settings → Variables and Secrets → tipo Secret): variáveis comuns
+# criadas no painel são apagadas a cada `wrangler deploy`; segredos são mantidos.

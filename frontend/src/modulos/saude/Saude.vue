@@ -6,6 +6,8 @@ import { avisar, avisarMudanca, versao } from '../../core/store';
 import { dataCurta, diasAte, dinheiro, hoje, horas, num } from '../../core/format';
 import Abas from '../../ui/Abas.vue';
 import EntidadeModal from '../../ui/EntidadeModal.vue';
+import Academia from './academia/Academia.vue';
+import Dieta from './academia/Dieta.vue';
 import { opcoes, type Campo } from '../../ui/campos';
 
 const TIPO_CONSULTA = { consulta: 'Consulta', exame: 'Exame', vacina: 'Vacina', procedimento: 'Procedimento', terapia: 'Terapia', odonto: 'Dentista' };
@@ -18,6 +20,7 @@ const router = useRouter();
 const aba = computed(() => (route.query.aba as string) || 'hoje');
 
 const resumo = ref<any>(null);
+const treinoHoje = ref<any>(null);
 const lista = ref<any[]>([]);
 const erro = ref('');
 const ROTA: Record<string, string> = { consultas: '/saude/consultas', remedios: '/saude/remedios', medidas: '/saude/medidas', treinos: '/saude/treinos' };
@@ -25,8 +28,10 @@ const ROTA: Record<string, string> = { consultas: '/saude/consultas', remedios: 
 async function carregar() {
   erro.value = '';
   try {
+    if (aba.value === 'academia' || aba.value === 'dieta') return; // as abas carregam sozinhas
     resumo.value = await api.get('/saude/resumo');
     lista.value = ROTA[aba.value] ? await api.get(ROTA[aba.value]) : [];
+    if (aba.value === 'hoje') treinoHoje.value = await api.get('/academia/hoje').catch(() => null);
   } catch (e) { erro.value = (e as Error).message; }
 }
 onMounted(() => { carregar(); abrirDaUrl(); });
@@ -129,12 +134,12 @@ const botaoNovo = computed<[TipoModal, string]>(() =>
     <header class="cabecalho">
       <div>
         <h1>Saúde</h1>
-        <p>Consultas, remédios, peso e treinos.</p>
+        <p>Treinos, dieta, consultas, remédios e peso.</p>
       </div>
-      <button class="btn primario" @click="modal = { tipo: botaoNovo[0], item: null }">{{ botaoNovo[1] }}</button>
+      <button v-if="aba !== 'academia' && aba !== 'dieta'" class="btn primario" @click="modal = { tipo: botaoNovo[0], item: null }">{{ botaoNovo[1] }}</button>
     </header>
 
-    <Abas :abas="[{ id: 'hoje', r: 'Hoje', n: dosesPendentes || undefined }, { id: 'consultas', r: 'Consultas e exames' }, { id: 'remedios', r: 'Remédios' }, { id: 'medidas', r: 'Peso e medidas' }, { id: 'treinos', r: 'Treinos' }]" />
+    <Abas :abas="[{ id: 'hoje', r: 'Hoje', n: dosesPendentes || undefined }, { id: 'academia', r: 'Academia' }, { id: 'dieta', r: 'Dieta' }, { id: 'consultas', r: 'Consultas e exames' }, { id: 'remedios', r: 'Remédios' }, { id: 'medidas', r: 'Peso e medidas' }, { id: 'treinos', r: 'Histórico de treinos' }]" />
     <p v-if="erro" class="erro-form">{{ erro }}</p>
 
     <!-- ------------------------------------------------------------ hoje -->
@@ -158,6 +163,17 @@ const botaoNovo = computed<[TipoModal, string]>(() =>
 
       <div class="duas bloco">
         <section class="secao">
+          <template v-if="treinoHoje && (treinoHoje.fixas.length || treinoHoje.rodizio)">
+            <header><h2>Treino de hoje</h2></header>
+            <ul class="lista painel">
+              <li v-for="f in [...treinoHoje.fixas, ...(treinoHoje.rodizio && !treinoHoje.fixas.some((x: any) => x.id === treinoHoje.rodizio.id) ? [treinoHoje.rodizio] : [])]" :key="f.id"
+                class="clicavel" @click="router.replace({ query: { aba: 'academia' } })">
+                <span class="ico" :style="{ '--c': f.cor }">🏋️</span>
+                <div><div class="titulo">{{ f.nome }}{{ f.foco ? ` · ${f.foco}` : '' }}</div><div class="meta">{{ f.exercicios.length }} exercícios{{ f.horario ? ` · ${f.horario}` : '' }}</div></div>
+                <div class="valor"><span v-if="treinoHoje.feitos.some((x: any) => x.ficha_id === f.id)" class="selo paga">Feito</span><span v-else class="suave">›</span></div>
+              </li>
+            </ul>
+          </template>
           <header><h2>Remédios de hoje</h2></header>
           <ul v-if="resumo.doses_hoje.length" class="lista painel">
             <li v-for="d in resumo.doses_hoje" :key="d.remedio_id + d.horario">
@@ -252,7 +268,10 @@ const botaoNovo = computed<[TipoModal, string]>(() =>
       </li>
     </ul>
 
-    <div v-if="aba !== 'hoje' && !lista.length" class="vazio painel bloco">
+    <Academia v-if="aba === 'academia'" />
+    <Dieta v-else-if="aba === 'dieta'" />
+
+    <div v-if="!['hoje', 'academia', 'dieta'].includes(aba) && !lista.length" class="vazio painel bloco">
       <span>Nada registrado ainda.</span>
       <button class="btn" @click="modal = { tipo: botaoNovo[0], item: null }">{{ botaoNovo[1] }}</button>
     </div>

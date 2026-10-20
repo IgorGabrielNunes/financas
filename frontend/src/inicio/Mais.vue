@@ -37,6 +37,11 @@ function sair() {
         <div><div class="titulo">Minha conta</div><div class="meta">{{ sessao.eu?.email }}</div></div>
         <span class="suave" aria-hidden="true">›</span>
       </li>
+      <li class="clicavel" @click="$router.push('/conta/avisos')">
+        <span class="ico" style="--c: var(--ink-3)">🔔</span>
+        <div><div class="titulo">Avisos</div><div class="meta">WhatsApp, Telegram e grupo da casa</div></div>
+        <span class="suave" aria-hidden="true">›</span>
+      </li>
       <li v-if="sessao.eu?.papel === 'admin'" class="clicavel" @click="$router.push('/conta/usuarios')">
         <span class="ico" style="--c: var(--ink-3)"><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="I.pessoas" /></svg></span>
         <div><div class="titulo">Usuários da casa</div><div class="meta">Adicionar e gerenciar quem usa o Vida</div></div>

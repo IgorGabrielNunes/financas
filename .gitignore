@@ -17,3 +17,6 @@ backend/uploads/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# cache local do wrangler (Cloudflare)
+.wrangler/

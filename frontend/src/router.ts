@@ -14,6 +14,7 @@ export const router = createRouter({
     { path: '/mais', component: () => import('./inicio/Mais.vue') },
     { path: '/conta', component: () => import('./modulos/conta/MinhaConta.vue') },
     { path: '/conta/usuarios', component: () => import('./modulos/conta/Usuarios.vue') },
+    { path: '/conta/avisos', component: () => import('./modulos/conta/Avisos.vue') },
     ...MODULOS.flatMap((m) => m.rotas),
     ...LEGADO.map((r) => ({ path: `/${r}/:resto(.*)*`, redirect: (to: any) => `/financas${to.fullPath}` })),
     { path: '/:p(.*)*', redirect: '/' },

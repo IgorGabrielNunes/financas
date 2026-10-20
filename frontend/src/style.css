@@ -229,3 +229,6 @@ input[type='color'] { padding: 4px; height: 44px; cursor: pointer; }
   body { background: #fff; }
   .pagina { padding: 0; }
 }
+
+/* toque: sem o quadrado azul do navegador; o feedback visual é do próprio componente */
+button, a, label, [role="tab"] { -webkit-tap-highlight-color: transparent; }

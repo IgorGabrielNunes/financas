@@ -16,6 +16,16 @@ const schema = z.object({
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // avisos (opcionais): robô do Telegram e gatilho externo do disparo
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),     // sem @, ex.: VidaIgorBot
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(16).optional(),
+  AVISOS_TOKEN: z.string().min(24).optional(),      // Bearer do POST /interno/avisos/disparar
+  // e-mail (opcional): Brevo, plano grátis; o remetente precisa estar verificado no Brevo
+  BREVO_API_KEY: z.string().optional(),
+  EMAIL_REMETENTE: z.string().email().optional(),
+  EMAIL_REMETENTE_NOME: z.string().default('Vida'),
+  APP_URL: z.string().url().optional(),             // link "Abrir o Vida" nos e-mails (ex.: https://vida.vercel.app)
 });
 
 const parsed = schema.safeParse(process.env);
