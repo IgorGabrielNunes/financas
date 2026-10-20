@@ -248,6 +248,23 @@ describe('Telegram e grupo da casa', () => {
     expect(enviados.find((e) => e.destino.chat_id === '777')?.texto).toContain('Bom dia, Laura!');
   });
 
+  it('avisos pessoais no grupo da casa levam o nome de quem é', async () => {
+    const lauraId = (await pool.query('select id from usuarios where casa_id = $1 and papel = $2', [casaId, 'membro'])).rows[0].id;
+    await pool.query(`insert into saude_remedios (user_id, nome, horarios) values ($1, 'Anticoncepcional', '{09:00}')`, [lauraId]);
+    const r = await laura('PUT', '/avisos/config', { ativo: true, canal: 'grupo', resumo_hora: null, discreto: true });
+    expect(r.status).toBe(200);
+    expect(r.body.grupo_vinculado).toBe(true);
+    const enviados: { destino: any; texto: string }[] = [];
+    await dispararAvisos(consultar, { agora: as('09:00'), enviar: async (destino, texto) => { enviados.push({ destino, texto }); } });
+    const msg = enviados.find((e) => e.destino.chat_id === '-100123' && e.texto.startsWith('👤 *Laura*'))!;
+    expect(msg.texto).toBe('👤 *Laura*\n💊 09:00 — hora de 1 remédio.'); // discreto: o grupo não vê o nome do remédio
+  });
+
+  it('canal grupo exige o grupo vinculado', async () => {
+    await pool.query('update notif_casa set telegram_chat_id = null where casa_id = $1', [casaId]);
+    expect((await laura('PUT', '/avisos/config', { ativo: true, canal: 'grupo' })).status).toBe(400);
+  });
+
   it('gatilho externo exige o token', async () => {
     expect((await app.inject({ method: 'POST', url: '/interno/avisos/disparar' })).statusCode).toBe(401);
   });

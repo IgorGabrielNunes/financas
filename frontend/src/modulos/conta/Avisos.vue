@@ -4,10 +4,10 @@ import { api } from '../../core/api';
 import { avisar, sessao } from '../../core/store';
 
 type Config = {
-  ativo: boolean; canal: 'callmebot' | 'telegram'; telefone: string | null; discreto: boolean; resumo_hora: string | null;
+  ativo: boolean; canal: 'callmebot' | 'telegram' | 'grupo'; telefone: string | null; discreto: boolean; resumo_hora: string | null;
   antecedencia_min: number; avisar_treino: boolean; avisar_remedios: boolean; avisar_consultas: boolean; avisar_entrevistas: boolean;
   avisar_refeicoes: boolean; silencio_inicio: string | null; silencio_fim: string | null;
-  tem_apikey: boolean; telegram_vinculado: boolean; telegram_disponivel: boolean; telegram_robo: string | null;
+  tem_apikey: boolean; telegram_vinculado: boolean; grupo_vinculado: boolean; telegram_disponivel: boolean; telegram_robo: string | null;
 };
 type Previa = { sai_as: string; tipo: string; texto: string };
 type Casa = {
@@ -78,6 +78,12 @@ async function salvarCasa(ativar?: boolean) {
 /** Prévia como a mensagem chega: *negrito* do WhatsApp vira <b> (texto escapado antes; nada de HTML do usuário passa). */
 const formatar = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
 const prontoWhats = computed(() => !!cfg.value?.telefone && (cfg.value.tem_apikey || !!f.apikey.trim()));
+/** O canal escolhido tem tudo para enviar? (WhatsApp: número + chave; Telegram: chat vinculado; grupo: grupo vinculado) */
+const canalPronto = computed(() => {
+  const c = cfg.value;
+  if (!c) return false;
+  return c.canal === 'callmebot' ? prontoWhats.value : c.canal === 'telegram' ? c.telegram_vinculado : c.grupo_vinculado;
+});
 </script>
 
 <template>
@@ -101,6 +107,7 @@ const prontoWhats = computed(() => !!cfg.value?.telefone && (cfg.value.tem_apike
         <div class="segmentado canal">
           <button :aria-pressed="cfg.canal === 'callmebot'" @click="cfg.canal = 'callmebot'">WhatsApp</button>
           <button :aria-pressed="cfg.canal === 'telegram'" @click="cfg.canal = 'telegram'">Telegram</button>
+          <button :aria-pressed="cfg.canal === 'grupo'" @click="cfg.canal = 'grupo'">Grupo</button>
         </div>
 
         <template v-if="cfg.canal === 'callmebot'">
@@ -116,6 +123,12 @@ const prontoWhats = computed(() => !!cfg.value?.telefone && (cfg.value.tem_apike
             </label>
           </div>
           <p class="suave miudo">Só manda para o seu próprio número. As mensagens passam pelo servidor do CallMeBot: se não quiser que ele veja nomes de consultas ou remédios, ligue o <b>modo discreto</b> abaixo.</p>
+        </template>
+
+        <template v-else-if="cfg.canal === 'grupo'">
+          <p>Seus avisos vão para o grupo da casa no Telegram, com o seu nome no topo (ex.: <b>👤 {{ sessao.eu?.nome?.split(' ')[0] }}</b> — hora do treino).</p>
+          <p v-if="!cfg.grupo_vinculado" class="aviso">O grupo ainda não foi vinculado. {{ admin ? 'Vincule na seção "Grupo da casa" abaixo.' : 'Peça ao administrador da casa.' }}</p>
+          <p class="suave miudo">Todos do grupo leem: para remédios e consultas, considere o <b>modo discreto</b>.</p>
         </template>
 
         <template v-else>
@@ -136,8 +149,8 @@ const prontoWhats = computed(() => !!cfg.value?.telefone && (cfg.value.tem_apike
         </template>
 
         <div class="acoes">
-          <button class="btn" :disabled="!(cfg.canal === 'callmebot' ? prontoWhats : cfg.telegram_vinculado)" @click="salvar().then(() => testar('/avisos/teste'))">Salvar e testar</button>
-          <button v-if="!cfg.ativo" class="btn primario" :disabled="salvando || !(cfg.canal === 'callmebot' ? prontoWhats : cfg.telegram_vinculado)" @click="salvar(true)">Ligar avisos</button>
+          <button class="btn" :disabled="!canalPronto" @click="salvar().then(() => testar('/avisos/teste'))">Salvar e testar</button>
+          <button v-if="!cfg.ativo" class="btn primario" :disabled="salvando || !canalPronto" @click="salvar(true)">Ligar avisos</button>
           <button v-else class="btn perigo" :disabled="salvando" @click="salvar(false)">Desligar</button>
         </div>
       </section>

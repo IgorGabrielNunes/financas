@@ -1,8 +1,8 @@
--- Avisos. Pessoais (cada usuário: WhatsApp via CallMeBot ou Telegram) e da casa (grupo no Telegram).
+-- Avisos. Pessoais (cada usuário: WhatsApp via CallMeBot, Telegram privado ou o grupo da casa) e da casa (grupo no Telegram).
 create table notif_config (
   user_id          uuid primary key references usuarios(id) on delete cascade,
   ativo            boolean not null default false,
-  canal            text not null default 'callmebot' check (canal in ('callmebot','telegram')),
+  canal            text not null default 'callmebot' check (canal in ('callmebot','telegram','grupo')),  -- grupo = grupo da casa no Telegram
   telefone         text check (telefone is null or telefone ~ '^\+?[0-9]{10,15}$'),
   apikey           text,                          -- chave do CallMeBot (nunca volta para o front)
   telegram_chat_id text,                          -- preenchido ao vincular pelo robô

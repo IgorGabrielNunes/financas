@@ -17,7 +17,7 @@ const envio = () => ({ telegramToken: env.TELEGRAM_BOT_TOKEN });
 
 const configBody = z.object({
   ativo: z.boolean(),
-  canal: z.enum(['callmebot', 'telegram']),
+  canal: z.enum(['callmebot', 'telegram', 'grupo']),
   telefone: z.string().trim().regex(/^\+?[0-9]{10,15}$/, 'Telefone com DDI e DDD, só números (ex.: +5555999998888)').nullable().optional(),
   apikey: z.string().trim().min(3).max(64).optional(),     // ausente = mantém a atual
   discreto: z.boolean().default(false),
@@ -41,7 +41,10 @@ async function lerConfig(userId: string) {
     avisar_treino: true, avisar_remedios: true, avisar_consultas: true, avisar_entrevistas: true, avisar_refeicoes: false,
     silencio_inicio: '22:00', silencio_fim: '07:00', apikey: null, telegram_chat_id: null };
   const { apikey, telegram_chat_id, ...resto } = base;
-  return { ...resto, tem_apikey: !!apikey, telegram_vinculado: !!telegram_chat_id, telegram_disponivel: !!env.TELEGRAM_BOT_TOKEN, telegram_robo: env.TELEGRAM_BOT_USERNAME ?? null };
+  const grupo = (await pool.query(
+    `select g.telegram_chat_id is not null as ok from notif_casa g join usuarios u on u.casa_id = g.casa_id where u.id = $1`, [userId])).rows[0];
+  return { ...resto, tem_apikey: !!apikey, telegram_vinculado: !!telegram_chat_id, grupo_vinculado: !!grupo?.ok,
+    telegram_disponivel: !!env.TELEGRAM_BOT_TOKEN, telegram_robo: env.TELEGRAM_BOT_USERNAME ?? null };
 }
 
 /** Prévia: simula o dia de 5 em 5 minutos e lista cada aviso no horário em que sairia. */
@@ -70,6 +73,10 @@ export async function avisos(app: FastifyInstance) {
     const apikey = b.apikey ?? atual?.apikey ?? null;
     if (b.ativo && b.canal === 'callmebot' && (!b.telefone || !apikey)) throw badRequest('Para o WhatsApp, informe o telefone e a chave do CallMeBot');
     if (b.ativo && b.canal === 'telegram' && !atual?.telegram_chat_id) throw badRequest('Vincule o Telegram antes de ativar por ele');
+    if (b.ativo && b.canal === 'grupo') {
+      const g = (await pool.query('select telegram_chat_id from notif_casa where casa_id = $1', [cid(req)])).rows[0];
+      if (!g?.telegram_chat_id) throw badRequest('O grupo da casa ainda não foi vinculado (o administrador vincula em Avisos)');
+    }
     await pool.query(
       `insert into notif_config (user_id, ativo, canal, telefone, apikey, discreto, resumo_hora, antecedencia_min,
          avisar_treino, avisar_remedios, avisar_consultas, avisar_entrevistas, avisar_refeicoes, silencio_inicio, silencio_fim, updated_at)
@@ -83,10 +90,13 @@ export async function avisos(app: FastifyInstance) {
   });
 
   app.post('/avisos/teste', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req) => {
-    const c = (await pool.query('select * from notif_config where user_id = $1', [uid(req)])).rows[0];
+    const c = (await pool.query(
+      `select c.*, u.nome, g.telegram_chat_id as grupo_chat_id from notif_config c join usuarios u on u.id = c.user_id
+         left join notif_casa g on g.casa_id = u.casa_id where c.user_id = $1`, [uid(req)])).rows[0];
     const destino = c && destinoDe(c);
     if (!destino) throw badRequest('Salve a configuração do canal antes de testar');
-    await enviarMensagem(destino, `✅ *Vida*: avisos funcionando por aqui!`, envio()).catch((e) => { throw badRequest(e.message); });
+    const quem = c.canal === 'grupo' ? `👤 *${c.nome.split(' ')[0]}*\n` : '';
+    await enviarMensagem(destino, `${quem}✅ *Vida*: avisos funcionando por aqui!`, envio()).catch((e) => { throw badRequest(e.message); });
     return { ok: true };
   });
 

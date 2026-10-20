@@ -46,8 +46,10 @@ export async function enviarMensagem(d: Destino, texto: string, o: OpcoesEnvio =
 }
 
 /** Monta o destino a partir da configuração; null = configuração incompleta. */
-export function destinoDe(c: { canal: string; telefone: string | null; apikey: string | null; telegram_chat_id: string | null }): Destino | null {
+export function destinoDe(c: { canal: string; telefone: string | null; apikey: string | null; telegram_chat_id: string | null; grupo_chat_id?: string | null }): Destino | null {
   if (c.canal === 'callmebot') return c.telefone && c.apikey ? { canal: 'callmebot', telefone: c.telefone, apikey: c.apikey } : null;
   if (c.canal === 'telegram') return c.telegram_chat_id ? { canal: 'telegram', chat_id: c.telegram_chat_id } : null;
+  // avisos pessoais no grupo da casa (o mesmo robô; a mensagem leva o nome de quem é o aviso)
+  if (c.canal === 'grupo') return c.grupo_chat_id ? { canal: 'telegram', chat_id: c.grupo_chat_id } : null;
   return null;
 }

@@ -4,6 +4,7 @@ import { coletarCasa, coletarDia, SELECT_CASAS, SELECT_CONFIG, type Consultar } 
 import { destinoDe, enviarMensagem, type Destino, type OpcoesEnvio } from './provedor.js';
 
 export type Enviar = (destino: Destino, texto: string) => Promise<void>;
+type Prefixo = string | null;
 export type Resultado = { dono: string; tipo: 'pessoal' | 'casa'; enviados: string[]; erros: string[] };
 
 /** Pior caso de um ciclo travado: o próximo não fica preso esperando. */
@@ -14,7 +15,7 @@ const MAX_AVISOS_POR_DONO = 20;
  * duas execuções simultâneas não mandam duas vezes. Se o envio falhar, as chaves são apagadas
  * e o aviso volta no próximo ciclo (enquanto estiver na janela).
  */
-async function entregar(q: Consultar, enviar: Enviar, dono: string, destino: Destino, avisos: Aviso[], r: Resultado) {
+async function entregar(q: Consultar, enviar: Enviar, dono: string, destino: Destino, avisos: Aviso[], r: Resultado, prefixo: Prefixo = null) {
   const novos: Aviso[] = [];
   for (const a of avisos.slice(0, MAX_AVISOS_POR_DONO)) {
     const ok = await q('insert into notif_enviadas (dono, chave) values ($1, $2) on conflict do nothing returning chave', [dono, a.chave]);
@@ -22,9 +23,10 @@ async function entregar(q: Consultar, enviar: Enviar, dono: string, destino: Des
   }
   if (!novos.length) return;
   // tudo que venceu no mesmo ciclo vai numa mensagem só (menos notificações, menos limite de API)
-  const texto = novos
+  const corpo = novos
     .sort((x, y) => (x.tipo === 'resumo' ? -1 : y.tipo === 'resumo' ? 1 : x.hora.localeCompare(y.hora)))
     .map((a) => a.texto).join('\n\n');
+  const texto = prefixo ? `${prefixo}\n${corpo}` : corpo;
   try {
     await enviar(destino, texto);
     r.enviados.push(...novos.map((a) => a.chave));
@@ -40,14 +42,16 @@ export async function dispararAvisos(q: Consultar, opts: { agora?: Date; enviar?
   const resultados: Resultado[] = [];
 
   // ------------------------------------------------------------ pessoais
-  const configs = await q<ConfigAvisos & { casa_id: string; canal: string; telefone: string | null; apikey: string | null; telegram_chat_id: string | null }>(SELECT_CONFIG);
+  const configs = await q<ConfigAvisos & { casa_id: string; canal: string; telefone: string | null; apikey: string | null; telegram_chat_id: string | null; grupo_chat_id: string | null }>(SELECT_CONFIG);
   for (const cfg of configs) {
     const destino = destinoDe(cfg);
     if (!destino) continue;
     const r: Resultado = { dono: cfg.user_id, tipo: 'pessoal', enviados: [], erros: [] };
     resultados.push(r);
     try {
-      await entregar(q, enviar, cfg.user_id, destino, avisosDevidos(cfg, await coletarDia(q, cfg, data), hora), r);
+      // no grupo, todo mundo lê: a mensagem diz de quem é o aviso
+      const prefixo = cfg.canal === 'grupo' ? `👤 *${cfg.nome.split(' ')[0]}*` : null;
+      await entregar(q, enviar, cfg.user_id, destino, avisosDevidos(cfg, await coletarDia(q, cfg, data), hora), r, prefixo);
     } catch (e) {
       r.erros.push((e as Error).message.slice(0, 300)); // um usuário com problema não derruba os outros
     }

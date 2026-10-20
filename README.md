@@ -133,6 +133,8 @@ API no Render ──► configuração, prévia, "enviar teste" e webhook do rob
 - **Pessoais**: cada usuário escolhe o canal e o que quer receber em **Avisos** (menu lateral → Avisos no WhatsApp):
   resumo do dia, hora do treino, remédios, consultas, entrevistas e refeições, com "não perturbe" e modo discreto.
 - **Grupo da casa** (Telegram): resumo diário das tarefas compartilhadas e das contas/faturas vencendo.
+  Cada pessoa também pode escolher o canal **Grupo** para os avisos pessoais: chegam no mesmo grupo com o nome no topo
+  ("👤 Igor — hora do treino"). Como todos leem, o modo discreto é recomendado para remédios e consultas.
   WhatsApp grátis não envia para grupos (limite do CallMeBot), por isso o grupo é no Telegram.
 - A regra fica em `backend/src/modulos/avisos` (função pura + coleta + disparo com deduplicação), testada com Postgres real;
   o Worker (`workers/avisos`) só liga o cron ao driver do Neon. **Não acorda a API no Render**: as horas grátis de lá
