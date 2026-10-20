@@ -2,14 +2,15 @@
 // Rodar: npm run test:e2e   — cria um usuário descartável e limpa ao final.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app.js';
-import { pool } from './db.js';
-import { migrate } from './migrate.js';
-import { hashSenha } from './auth.js';
-import { hojeSP } from './domain/datas.js';
+import { pool } from './core/db.js';
+import { migrate } from './core/migrate.js';
+import { hashSenha } from './core/auth.js';
+import { hojeSP } from './core/datas.js';
 
 const email = `e2e-${Date.now()}@teste.local`;
 let app: Awaited<ReturnType<typeof buildApp>>;
 let auth: Record<string, string>;
+let casaId: string;
 const call = async (method: string, url: string, payload?: unknown) => {
   const r = await app.inject({ method: method as any, url, payload: payload as any, headers: auth });
   return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null };
@@ -18,14 +19,16 @@ const call = async (method: string, url: string, payload?: unknown) => {
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   await migrate();
-  await pool.query('insert into usuarios (email, nome, senha_hash) values ($1, $2, $3)', [email, 'E2E', await hashSenha('senha-de-teste-123')]);
+  casaId = (await pool.query('insert into casas (nome) values ($1) returning id', ['Casa E2E'])).rows[0].id;
+  await pool.query(`insert into usuarios (casa_id, email, nome, senha_hash, papel) values ($1, $2, $3, $4, 'admin')`,
+    [casaId, email, 'E2E', await hashSenha('senha-de-teste-123')]);
   app = await buildApp();
   const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { email, senha: 'senha-de-teste-123' } });
   auth = { authorization: `Bearer ${JSON.parse(login.body).token}` };
 });
 
 afterAll(async () => {
-  await pool.query('delete from usuarios where email = $1', [email]);
+  await pool.query('delete from casas where id = $1', [casaId]); // cascata: usuários e todos os dados
   await app.close();
   await pool.end();
 });
@@ -360,8 +363,78 @@ describe('fluxo completo', () => {
     expect((await call('GET', `/pessoas/${laura.id}/rescisao?tipo=justa_causa&data=2020-01-01`)).status).toBe(400);
   });
 
-  it('isolamento entre usuários', async () => {
-    const r = await app.inject({ method: 'GET', url: `/lancamentos/${compraId}`, headers: { authorization: `Bearer ${app.jwt.sign({ sub: '00000000-0000-0000-0000-000000000000', email: 'x' })}` } });
-    expect(r.statusCode).toBe(404);
+  it('isolamento entre casas: outra casa não enxerga nada desta', async () => {
+    const outraCasa = (await pool.query('insert into casas (nome) values ($1) returning id', ['Outra'])).rows[0].id;
+    const outroEmail = `outro-${Date.now()}@teste.local`;
+    await pool.query(`insert into usuarios (casa_id, email, nome, senha_hash) values ($1,$2,'Outro',$3)`,
+      [outraCasa, outroEmail, await hashSenha('senha-de-teste-123')]);
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: outroEmail, senha: 'senha-de-teste-123' } });
+    const h = { authorization: `Bearer ${JSON.parse(login.body).token}` };
+    expect((await app.inject({ method: 'GET', url: `/lancamentos/${compraId}`, headers: h })).statusCode).toBe(404);
+    expect(JSON.parse((await app.inject({ method: 'GET', url: '/contas', headers: h })).body)).toEqual([]);
+    expect(JSON.parse((await app.inject({ method: 'GET', url: '/pessoas', headers: h })).body)).toEqual([]);
+    await pool.query('delete from casas where id = $1', [outraCasa]);
+  });
+
+  it('token sem casa (sessão antiga) é recusado', async () => {
+    const velho = app.jwt.sign({ sub: '00000000-0000-0000-0000-000000000000', email: 'x' } as any);
+    expect((await app.inject({ method: 'GET', url: '/contas', headers: { authorization: `Bearer ${velho}` } })).statusCode).toBe(401);
+  });
+});
+
+describe('casa e usuários', () => {
+  const emailLaura = `laura-${Date.now()}@teste.local`;
+  let laura: { id: string; pessoa_id: string };
+  let hLaura: Record<string, string>;
+  const comoLaura = async (method: string, url: string, payload?: unknown) => {
+    const r = await app.inject({ method: method as any, url, payload: payload as any, headers: hLaura });
+    return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null };
+  };
+
+  it('admin cria a Laura ligada ao perfil existente; ela entra e precisa trocar a senha', async () => {
+    const perfil = (await call('GET', '/pessoas')).body.find((p: any) => p.nome === 'Laura');
+    const r = await call('POST', '/conta/usuarios', { nome: 'Laura Pâmela', email: emailLaura, senha: 'temporaria-123', pessoa_id: perfil.id });
+    expect(r.status).toBe(201);
+    expect(r.body.pessoa_nome).toBe('Laura');
+    laura = r.body;
+    expect((await call('POST', '/conta/usuarios', { nome: 'X', email: emailLaura, senha: 'temporaria-123' })).status).toBe(409);
+
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: emailLaura, senha: 'temporaria-123' } });
+    expect(JSON.parse(login.body).usuario.trocar_senha).toBe(true);
+    hLaura = { authorization: `Bearer ${JSON.parse(login.body).token}` };
+    expect((await comoLaura('PUT', '/conta/senha', { atual: 'errada', nova: 'nova-senha-123' })).status).toBe(400);
+    expect((await comoLaura('PUT', '/conta/senha', { atual: 'temporaria-123', nova: 'nova-senha-da-laura' })).status).toBe(200);
+    expect((await comoLaura('GET', '/conta/eu')).body.trocar_senha).toBe(false);
+  });
+
+  it('Laura vê as finanças da casa e edita o próprio salário; não gerencia usuários', async () => {
+    const contasAdmin = (await call('GET', '/contas')).body.map((c: any) => c.id).sort();
+    const contasLaura = (await comoLaura('GET', '/contas')).body.map((c: any) => c.id).sort();
+    expect(contasLaura).toEqual(contasAdmin);
+
+    const eu = (await comoLaura('GET', '/conta/eu')).body;
+    const sal = await comoLaura('POST', `/pessoas/${eu.pessoa_id}/salarios`, { vigencia: '2026-08-01', bruto_centavos: 310000 });
+    expect(sal.status).toBe(201);
+
+    expect((await comoLaura('GET', '/conta/usuarios')).status).toBe(403);
+    expect((await comoLaura('POST', '/conta/usuarios', { nome: 'Y', email: 'y@y.com', senha: 'temporaria-123' })).status).toBe(403);
+  });
+
+  it('não deixa a casa sem admin; desativar corta o acesso na hora', async () => {
+    const eu = (await call('GET', '/conta/eu')).body;
+    const rebaixar = await call('PUT', `/conta/usuarios/${eu.id}`, { nome: eu.nome, papel: 'membro', pessoa_id: eu.pessoa_id, ativo: true });
+    expect(rebaixar.status).toBe(409);
+
+    const d = await call('PUT', `/conta/usuarios/${laura.id}`, { nome: 'Laura Pâmela', papel: 'membro', pessoa_id: laura.pessoa_id, ativo: false });
+    expect(d.status).toBe(200);
+    expect((await comoLaura('GET', '/contas')).status).toBe(401);
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: emailLaura, senha: 'nova-senha-da-laura' } });
+    expect(login.statusCode).toBe(401);
+
+    // reativa com senha temporária definida pelo admin
+    await call('PUT', `/conta/usuarios/${laura.id}`, { nome: 'Laura Pâmela', papel: 'membro', pessoa_id: laura.pessoa_id, ativo: true });
+    expect((await call('PUT', `/conta/usuarios/${laura.id}/senha`, { senha: 'outra-temporaria' })).status).toBe(200);
+    const l2 = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: emailLaura, senha: 'outra-temporaria' } });
+    expect(JSON.parse(l2.body).usuario.trocar_senha).toBe(true);
   });
 });

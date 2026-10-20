@@ -1,6 +1,36 @@
-# Caixa — controle de gastos para sair do cartão de crédito
+# Vida — finanças, tarefas, estudos, saúde, projetos e carreira
 
-Vue 3 + Vite (front) · Node 22 + Fastify + Postgres (API) · Deploy: Vercel + Render.
+Vue 3 + Vite (front) · Node 22 + Fastify + Postgres (API) · Deploy: Vercel + Render + Neon + R2.
+
+Monólito modular: **um backend, um banco, um front**. Cada módulo é uma pasta (`backend/src/modulos/<mod>`,
+`frontend/src/modulos/<mod>`) registrada numa lista (`modulos/index.ts` dos dois lados). Módulos conversam por
+chamada de função/consulta no mesmo processo — sem fila e sem segundo backend (custo zero, transação única).
+
+| Módulo | O que tem | Dono dos dados |
+|---|---|---|
+| Finanças | contas, cartões, faturas, fixos, lançamentos, comprovantes, pessoas/salários, CLT, dívidas | **casa** (compartilhado) |
+| Tarefas | áreas, hoje/semana/algum dia, repetição diária/semanal/mensal, sequência, histórico | usuário; "tarefa da casa" é vista por todos |
+| Anotações | notas com etiquetas, fixar, cores, busca | usuário |
+| Estudos | cursos, disciplinas, avaliações (média ponderada e quanto falta), livros, horas | usuário |
+| Saúde | consultas/exames com retorno, remédios e doses do dia, peso/IMC, treinos | usuário |
+| Projetos | pessoal/software/produto/profissional, kanban com arrastar, marcos, pontos, bugs, branch/PR, links, modelo de cobrança | usuário |
+| Profissional | experiências, habilidades, metas, funil de vagas, entrevistas, currículo para imprimir/PDF | usuário |
+
+## Casa e usuários
+
+- Cada login pertence a uma **casa**. O primeiro usuário (`npm run user:create`) é **admin** e já ganha o perfil
+  em Pessoas com o primeiro nome.
+- Admin adiciona pessoas em **Usuários da casa** (menu lateral ou Mais): nome, e-mail, papel e senha temporária.
+  O usuário é obrigado a trocar a senha no primeiro acesso. Ao criar, ele é ligado a um perfil de Pessoas
+  (existente ou criado com o primeiro nome) — **é assim que cada um lança o próprio salário**.
+- Não existe cadastro público (decisão: dados sensíveis). Desativar um usuário corta o acesso em até 60 s
+  (checagem no banco com cache curto), sem esperar o token expirar.
+- Após a migração 005, **sessões antigas pedem login de novo** (o token passou a carregar a casa).
+
+## Migrations
+
+Rodam sozinhas no boot da API (Render). 005 converte os dados financeiros de `user_id` para `casa_id` preservando
+tudo (a casa recebe o mesmo id do usuário antigo); 006–011 criam os módulos novos.
 
 A métrica central é o **disponível real até o próximo salário**:
 
@@ -148,7 +178,8 @@ Fora do escopo: horas extras, adicionais, médias de variáveis, faltas, PLR, se
 - **Dinheiro em centavos (`bigint`)**, parse para `number` no driver (seguro até 2^53).
 - **DATE como string `YYYY-MM-DD`** em todo o caminho (parser do `pg` + formatação por string no front): elimina o
   bug clássico de "voltar um dia" entre servidor UTC e cliente -03:00. "Hoje" é calculado em `America/Sao_Paulo`.
-- **Multiusuário desde o schema** (`user_id` em tudo, filtro em todas as queries). Teste e2e cobre o isolamento.
+- **Isolamento por dono**: finanças filtram por `casa_id`, módulos pessoais por `user_id`; FKs de outro dono são
+  recusadas no CRUD genérico (`core/crud.ts`). Testes e2e cobrem isolamento entre casas e entre membros.
 - **Comprovantes**: tipo validado por magic bytes (não confia no Content-Type), 10 MB, compressão no navegador
   (lado maior 1600 px, JPEG 0.82), chave no banco, arquivo no storage, remoção do arquivo só após commit.
 - **Auth**: scrypt nativo (sem binário nativo para quebrar build), JWT 30 dias, rate limit no login, sem cadastro público.

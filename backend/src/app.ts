@@ -4,16 +4,13 @@ import jwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { z } from 'zod';
-import { env } from './env.js';
-import { pool } from './db.js';
-import { HttpError } from './errors.js';
-import { autenticar, conferirSenha, uid } from './auth.js';
-import { parse } from './routes/schemas.js';
-import { cadastrosRoutes } from './routes/cadastros.js';
-import { movimentoRoutes } from './routes/movimento.js';
-import { comprovantesRoutes } from './routes/comprovantes.js';
-import { pessoasRoutes } from './routes/pessoas.js';
-import { trabalhoRoutes } from './routes/trabalho.js';
+import { env } from './core/env.js';
+import { pool } from './core/db.js';
+import { HttpError } from './core/errors.js';
+import { autenticar, conferirSenha } from './core/auth.js';
+import { parse } from './core/validacao.js';
+import { MODULOS } from './modulos/index.js';
+import { comprovantesRoutes } from './modulos/financas/rotas/comprovantes.js';
 
 // O navegador manda só protocolo + domínio no Origin. Normalizamos o que vier na variável
 // ("https://x.app/", "https://x.app/login", com espaços) para não quebrar o login por um detalhe de digitação.
@@ -61,13 +58,15 @@ export async function buildApp() {
 
   app.post('/auth/login', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const b = parse(z.object({ email: z.string().trim().toLowerCase(), senha: z.string().min(1) }), req.body);
-    const r = await pool.query('select id, email, nome, senha_hash from usuarios where email = $1', [b.email]);
+    const r = await pool.query(
+      'select id, email, nome, senha_hash, casa_id, papel, ativo, trocar_senha from usuarios where email = $1', [b.email]);
     const u = r.rows[0];
-    if (!u || !(await conferirSenha(b.senha, u.senha_hash))) {
+    // mesma mensagem para e-mail inexistente, senha errada ou usuário desativado: não revela quem existe
+    if (!u || !u.ativo || !(await conferirSenha(b.senha, u.senha_hash))) {
       return reply.code(401).send({ erro: 'E-mail ou senha inválidos' });
     }
-    const token = app.jwt.sign({ sub: u.id, email: u.email });
-    return { token, usuario: { id: u.id, email: u.email, nome: u.nome } };
+    const token = app.jwt.sign({ sub: u.id, email: u.email, casa: u.casa_id, papel: u.papel });
+    return { token, usuario: { id: u.id, email: u.email, nome: u.nome, papel: u.papel, trocar_senha: u.trocar_senha } };
   });
 
   // comprovantes tem uma rota pública assinada; o restante dele se autentica internamente
@@ -75,13 +74,9 @@ export async function buildApp() {
 
   await app.register(async (priv) => {
     priv.addHook('onRequest', autenticar);
-    priv.get('/auth/me', async (req) =>
-      (await pool.query('select id, email, nome from usuarios where id = $1', [uid(req)])).rows[0]);
-    await priv.register(cadastrosRoutes);
-    await priv.register(movimentoRoutes);
-    await priv.register(pessoasRoutes);
-    await priv.register(trabalhoRoutes);
+    for (const m of MODULOS) await priv.register(m);
   });
 
   return app;
 }
+

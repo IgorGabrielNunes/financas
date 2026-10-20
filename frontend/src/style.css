@@ -91,6 +91,11 @@ a { color: inherit; }
 
 /* ------------------------------------------------------------- estrutura */
 .pagina { max-width: 1120px; margin: 0 auto; padding: 32px 32px 120px; display: grid; gap: 32px; }
+.pagina.estreita { max-width: 820px; }
+.pagina.larga { max-width: 1480px; }
+/* módulos do Vida: blocos mais próximos (filtros, abas e listas formam um grupo) */
+.pagina.modulo { gap: 18px; align-content: start; }
+.pagina.modulo > .cabecalho { margin-bottom: 4px; }
 @media (max-width: 760px) { .pagina { padding: 20px 16px 120px; gap: 26px; } }
 
 .cabecalho { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -161,6 +166,8 @@ a { color: inherit; }
 .kpis b { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 .kpis small { font-size: 0.75rem; color: var(--ink-3); }
 .kpis small.sai { color: var(--sai); }
+/* 4 indicadores: 4 numa linha ou 2×2, nunca 3 + 1 sobrando */
+@media (min-width: 761px) { .kpis:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .kpis { grid-template-columns: 1fr 1fr; }
   .kpis > * { padding: 14px 16px; }
@@ -188,7 +195,8 @@ a { color: inherit; }
 
 /* -------------------------------------------------------------- formulário */
 .form { display: grid; gap: 16px; }
-.form .linha { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* dois campos por linha só quando cada um tem ≥170px; no celular estreito empilha. align start: dica embaixo de um não desalinha o outro */
+.form .linha { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; }
 .campo { display: grid; gap: 6px; min-width: 0; }
 .campo > span { font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
 .campo small { color: var(--ink-3); font-size: 0.75rem; line-height: 1.4; }
@@ -214,3 +222,10 @@ input[type='color'] { padding: 4px; height: 44px; cursor: pointer; }
 .medidor { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
 .medidor > i { display: block; height: 100%; background: var(--sai); border-radius: 3px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media print {
+  .lateral, .inferior, .toast { display: none !important; }
+  .casca.logado { display: block !important; background: none !important; }
+  body { background: #fff; }
+  .pagina { padding: 0; }
+}

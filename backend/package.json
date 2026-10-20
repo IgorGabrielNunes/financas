@@ -14,9 +14,11 @@
     "migrate:dev": "tsx src/migrate.ts",
     "user:create": "tsx src/scripts/create-user.ts",
     "user:create:prod": "node dist/scripts/create-user.js",
-    "test": "vitest run src/domain",
+    "test": "vitest run src/modulos",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:e2e": "vitest run src/e2e.test.ts"
+    "test:e2e": "vitest run src/e2e",
+    "user:senha": "tsx src/scripts/reset-password.ts",
+    "user:senha:prod": "node dist/scripts/reset-password.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
