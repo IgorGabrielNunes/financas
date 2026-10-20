@@ -18,7 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "vitest run src/e2e",
     "user:senha": "tsx src/scripts/reset-password.ts",
-    "user:senha:prod": "node dist/scripts/reset-password.js"
+    "user:senha:prod": "node dist/scripts/reset-password.js",
+    "telegram:webhook": "tsx src/scripts/telegram-webhook.ts",
+    "telegram:webhook:prod": "node dist/scripts/telegram-webhook.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -87,6 +87,7 @@ function sair() {
           <span class="avatar" aria-hidden="true">{{ sessao.eu?.nome?.slice(0, 1) ?? '?' }}</span>
           <span class="quem">{{ sessao.eu?.nome?.split(' ')[0] ?? 'Minha conta' }}<small>{{ sessao.eu?.casa?.nome }}</small></span>
         </RouterLink>
+        <RouterLink to="/conta/avisos" :class="['item', 'pequeno', { ativo: ativo('/conta/avisos') }]">Avisos no WhatsApp</RouterLink>
         <RouterLink v-if="sessao.eu?.papel === 'admin'" to="/conta/usuarios" :class="['item', 'pequeno', { ativo: ativo('/conta/usuarios') }]">Usuários da casa</RouterLink>
         <button class="item pequeno" @click="sair">Sair</button>
       </div>

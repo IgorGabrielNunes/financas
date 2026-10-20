@@ -6,8 +6,10 @@ import { tarefas } from './tarefas/rotas.js';
 import { notas } from './notas/rotas.js';
 import { estudos } from './estudos/rotas.js';
 import { saude } from './saude/rotas.js';
+import { academia } from './academia/rotas.js';
+import { avisos } from './avisos/rotas.js';
 import { projetos } from './projetos/rotas.js';
 import { profissional } from './profissional/rotas.js';
 import { hoje } from './hoje.js';
 
-export const MODULOS = [conta, financas, tarefas, notas, estudos, saude, projetos, profissional, hoje];
+export const MODULOS = [conta, financas, tarefas, notas, estudos, saude, academia, projetos, profissional, avisos, hoje];

@@ -15,6 +15,7 @@ const saude = ref<any>(null);
 const agenda = ref<any[]>([]);
 const financas = ref<{ disponivel_centavos: number; horizonte: string } | null>(null);
 const estudoSemana = ref<number | null>(null);
+const treino = ref<any>(null);
 const apoioPronto = ref(false);
 
 async function carregar() {
@@ -24,6 +25,7 @@ async function carregar() {
   api.get<any[]>('/hoje/agenda').then((r) => (agenda.value = r)).catch(() => {});
   api.get<any>('/dashboard').then((r) => (financas.value = { disponivel_centavos: r.disponivel.disponivel_centavos, horizonte: r.horizonte })).catch(() => {});
   api.get<any>('/estudos/resumo').then((r) => (estudoSemana.value = r.minutos.semana)).catch(() => {});
+  api.get<any>('/academia/hoje').then((r) => (treino.value = r)).catch(() => {});
 }
 watch(versao, carregar, { immediate: true });
 carregarApoio().then(() => (apoioPronto.value = true)).catch(() => {});
@@ -31,6 +33,12 @@ carregarApoio().then(() => (apoioPronto.value = true)).catch(() => {});
 const pendentes = computed(() => tarefas.value?.filter((t) => !t.feita) ?? []);
 const feitas = computed(() => tarefas.value?.filter((t) => t.feita) ?? []);
 const doses = computed(() => saude.value?.doses_hoje ?? []);
+const fichasHoje = computed(() => {
+  const t = treino.value;
+  if (!t) return [];
+  const l = [...t.fixas, ...(t.rodizio && !t.fixas.some((f: any) => f.id === t.rodizio.id) ? [t.rodizio] : [])];
+  return l.map((f: any) => ({ ...f, feito: t.feitos.some((x: any) => x.ficha_id === f.id) }));
+});
 const porDia = computed(() => {
   if (!financas.value) return null;
   const d = diasAte(financas.value.horizonte);
@@ -91,6 +99,11 @@ const form = ref<{ tarefa: Tarefa | null } | null>(null);
 
     <div class="duas">
       <section class="secao">
+        <RouterLink v-for="f in fichasHoje" :key="f.id" to="/saude?aba=academia" class="treino painel" :style="{ '--c': f.cor }">
+          <span class="ico" :style="{ '--c': f.cor }">🏋️</span>
+          <span class="txt"><b>{{ f.nome }}{{ f.foco ? ` · ${f.foco}` : '' }}</b><small>{{ f.feito ? 'feito hoje 💪' : `${f.exercicios.length} exercícios${f.horario ? ` · ${f.horario}` : ''}` }}</small></span>
+          <span :class="f.feito ? 'selo paga' : 'btn primario pequeno'">{{ f.feito ? 'Feito' : 'Treinar' }}</span>
+        </RouterLink>
         <header><h2>Hoje</h2><button class="btn link" @click="form = { tarefa: null }">+ tarefa</button></header>
         <ul v-if="pendentes.length || feitas.length" class="painel lista-tarefas">
           <TarefaItem v-for="t in [...pendentes, ...feitas]" :key="t.id + (t.ocorrencia ?? '')" :t="t" @abrir="(x) => apoioPronto && (form = { tarefa: x })" />
@@ -153,6 +166,11 @@ const form = ref<{ tarefa: Tarefa | null } | null>(null);
 .riscado { text-decoration: line-through; color: var(--ink-3); }
 .vazio { gap: 4px; padding: 24px 20px; }
 .atalhos { display: flex; gap: 8px; flex-wrap: wrap; }
+.treino { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; text-decoration: none; color: inherit; border-left: 4px solid var(--c); }
+.treino .txt { display: grid; min-width: 0; }
+.treino b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.treino small { color: var(--ink-3); font-size: 0.8125rem; }
+.treino .pequeno { min-height: 36px; padding: 6px 14px; }
 .dose { position: relative; }
 .dose::after { content: ''; position: absolute; inset: -10px; } /* 24px internos + 2×10 = 44px */
 @media (pointer: coarse) {

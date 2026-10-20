@@ -1,0 +1,41 @@
+# Publica o Worker de avisos na Cloudflare quando a regra ou o worker mudam no master.
+# Precisa dos segredos do repositório CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID;
+# sem eles, o job é pulado (não falha).
+name: Worker de avisos
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'workers/avisos/**'
+      - 'backend/src/modulos/avisos/**'
+      - 'backend/src/modulos/academia/dominio.ts'
+      - 'backend/src/modulos/tarefas/dominio.ts'
+      - 'backend/src/core/datas.ts'
+      - '.github/workflows/avisos-worker.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Sem segredos da Cloudflare, nada a publicar
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "Configure CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID em Settings → Secrets → Actions."
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version: 22
+      - name: Testes da regra dos avisos
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: backend
+        run: npm ci && npx vitest run src/modulos/avisos src/modulos/academia src/modulos/tarefas
+      - name: Publicar
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: workers/avisos
+        run: npm ci && npx tsc --noEmit && npx wrangler deploy

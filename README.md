@@ -12,7 +12,7 @@ chamada de função/consulta no mesmo processo — sem fila e sem segundo backen
 | Tarefas | áreas, hoje/semana/algum dia, repetição diária/semanal/mensal, sequência, histórico | usuário; "tarefa da casa" é vista por todos |
 | Anotações | notas com etiquetas, fixar, cores, busca | usuário |
 | Estudos | cursos, disciplinas, avaliações (média ponderada e quanto falta), livros, horas | usuário |
-| Saúde | consultas/exames com retorno, remédios e doses do dia, peso/IMC, treinos | usuário |
+| Saúde | academia (fichas, treino do dia, cargas e evolução), dieta (planos por tipo de dia, refeições, macros), consultas/exames, remédios e doses, peso/IMC | usuário |
 | Projetos | pessoal/software/produto/profissional, kanban com arrastar, marcos, pontos, bugs, branch/PR, links, modelo de cobrança | usuário |
 | Profissional | experiências, habilidades, metas, funil de vagas, entrevistas, currículo para imprimir/PDF | usuário |
 
@@ -29,7 +29,7 @@ chamada de função/consulta no mesmo processo — sem fila e sem segundo backen
 
 ## Migrations
 
-Rodam sozinhas no boot da API (Render). 005 converte os dados financeiros de `user_id` para `casa_id` preservando
+Rodam sozinhas no boot da API (Render). 012 cria academia e dieta; 013 os avisos. 005 converte os dados financeiros de `user_id` para `casa_id` preservando
 tudo (a casa recebe o mesmo id do usuário antigo); 006–011 criam os módulos novos.
 
 A métrica central é o **disponível real até o próximo salário**:
@@ -122,6 +122,51 @@ No Render, troque `CORS_ORIGIN` para o domínio da Vercel, exatamente como apare
   Duas APIs sempre acordadas estouram o limite e o Render suspende **todos** os serviços grátis até o mês seguinte.
   Se o tempo de acordar incomodar, o plano Starter do Render resolve só para esta API.
 - **Backup:** faça `pg_dump "<connection string>" > caixa-AAAA-MM-DD.sql` periodicamente (cliente `pg_dump` 16+).
+
+## Avisos (WhatsApp e Telegram) — custo zero
+
+```
+Cloudflare Worker (cron a cada 5 min) ──► Neon (lê o dia de cada um) ──► WhatsApp (CallMeBot) / Telegram
+API no Render ──► configuração, prévia, "enviar teste" e webhook do robô do Telegram
+```
+
+- **Pessoais**: cada usuário escolhe o canal e o que quer receber em **Avisos** (menu lateral → Avisos no WhatsApp):
+  resumo do dia, hora do treino, remédios, consultas, entrevistas e refeições, com "não perturbe" e modo discreto.
+- **Grupo da casa** (Telegram): resumo diário das tarefas compartilhadas e das contas/faturas vencendo.
+  WhatsApp grátis não envia para grupos (limite do CallMeBot), por isso o grupo é no Telegram.
+- A regra fica em `backend/src/modulos/avisos` (função pura + coleta + disparo com deduplicação), testada com Postgres real;
+  o Worker (`workers/avisos`) só liga o cron ao driver do Neon. **Não acorda a API no Render**: as horas grátis de lá
+  ficam para quando você usa o app.
+- Deduplicação por chave (`notif_enviadas`): cron duplicado/atrasado não repete mensagem; falha de envio volta no ciclo seguinte.
+
+### 1. WhatsApp (cada pessoa, 1 minuto)
+1. Salve **+34 621 331 709** nos contatos e mande `I allow callmebot to send me messages`.
+2. Cole o número e a apikey recebida em **Avisos**, toque em **Salvar e testar** e depois **Ligar avisos**.
+
+### 2. Robô do Telegram (opcional — para o grupo da casa ou quem preferir Telegram)
+1. No Telegram, fale com **@BotFather** → `/newbot` → escolha nome e usuário (ex.: `VidaCasaIgorBot`). Guarde o token.
+2. No Render (financas-api → Environment), adicione:
+   `TELEGRAM_BOT_TOKEN` (o token), `TELEGRAM_BOT_USERNAME` (sem @) e `TELEGRAM_WEBHOOK_SECRET` (uma senha aleatória com 16+ caracteres).
+3. Depois do deploy, registre o webhook uma vez. Mais simples: abra no navegador (troque os 3 valores):
+   `https://api.telegram.org/bot<TOKEN>/setWebhook?url=<URL_DA_API>/telegram/webhook&secret_token=<SEGREDO>&allowed_updates=["message"]`
+   — deve responder `"Webhook was set"`. Alternativa: na sua máquina, com `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`
+   e `PUBLIC_API_URL` (de produção) no `backend/.env`, rode `npm run telegram:webhook`.
+4. Em **Avisos**: "Gerar link de vínculo" (pessoal) e, como admin, "Gerar código do grupo" (adicione o robô ao grupo pelo link).
+
+### 3. Worker na Cloudflare (dispara os avisos)
+1. Crie uma conta grátis em cloudflare.com (não precisa de cartão para Workers).
+2. **My Profile → API Tokens → Create Token → modelo "Edit Cloudflare Workers"**. Copie o token e o **Account ID**
+   (aparece na página inicial de Workers & Pages).
+3. No GitHub: **Settings → Secrets and variables → Actions** → crie `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
+4. **Actions → Worker de avisos → Run workflow**. Ele roda os testes da regra e publica o `vida-avisos`.
+5. Na Cloudflare: **Workers & Pages → vida-avisos → Settings → Variables and Secrets**, adicione como *Secret*:
+   `DATABASE_URL` (a mesma connection string do Neon da API) e, se usar Telegram, `TELEGRAM_BOT_TOKEN`.
+6. Acompanhe em **vida-avisos → Logs**: a cada 5 minutos aparece `{"enviados":N,"erros":[...]}`.
+
+Limites do plano grátis que importam: Workers 100 mil requisições/dia e 5 crons por conta (usamos 1);
+o Worker abre **uma** conexão WebSocket com o Neon por execução (o modo HTTP faria uma chamada externa por consulta e
+estouraria o limite de 50 por execução). Alternativa sem Cloudflare: qualquer cron externo chamando
+`POST /interno/avisos/disparar` com `Authorization: Bearer $AVISOS_TOKEN` (mas aí acorda a API no Render).
 
 ## Regras de domínio (backend/src/domain/fatura.ts — testadas)
 

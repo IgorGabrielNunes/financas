@@ -11,7 +11,8 @@ const OPCOES = [
   { r: 'Tarefa', d: 'Para hoje ou com data', icone: I.tarefas, acao: () => router.push({ path: '/tarefas', query: { novo: '1' } }) },
   { r: 'Anotação', d: 'Ideia, lista, lembrete', icone: I.notas, acao: () => router.push({ path: '/notas', query: { novo: '1' } }) },
   { r: 'Tempo de estudo', d: 'Registrar uma sessão', icone: I.estudos, acao: () => router.push({ path: '/estudos', query: { novo: 'sessao' } }) },
-  { r: 'Treino', d: 'Musculação, corrida, caminhada', icone: I.saude, acao: () => router.push({ path: '/saude', query: { aba: 'treinos', novo: 'treino' } }) },
+  { r: 'Treino de hoje', d: 'Abrir a ficha do dia', icone: I.saude, acao: () => router.push({ path: '/saude', query: { aba: 'academia' } }) },
+  { r: 'Outro treino', d: 'Corrida, caminhada, bike', icone: I.saude, acao: () => router.push({ path: '/saude', query: { aba: 'treinos', novo: 'treino' } }) },
   { r: 'Peso', d: 'Nova medida', icone: I.saude, acao: () => router.push({ path: '/saude', query: { aba: 'medidas', novo: 'medida' } }) },
 ];
 function escolher(o: (typeof OPCOES)[number]) {

@@ -11,6 +11,7 @@ import { autenticar, conferirSenha } from './core/auth.js';
 import { parse } from './core/validacao.js';
 import { MODULOS } from './modulos/index.js';
 import { comprovantesRoutes } from './modulos/financas/rotas/comprovantes.js';
+import { avisosPublico } from './modulos/avisos/rotas.js';
 
 // O navegador manda só protocolo + domínio no Origin. Normalizamos o que vier na variável
 // ("https://x.app/", "https://x.app/login", com espaços) para não quebrar o login por um detalhe de digitação.
@@ -71,6 +72,8 @@ export async function buildApp() {
 
   // comprovantes tem uma rota pública assinada; o restante dele se autentica internamente
   await app.register(comprovantesRoutes);
+  // webhook do Telegram e gatilho externo dos avisos: autenticação própria (segredo no cabeçalho)
+  await app.register(avisosPublico);
 
   await app.register(async (priv) => {
     priv.addHook('onRequest', autenticar);
