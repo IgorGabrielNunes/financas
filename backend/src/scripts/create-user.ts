@@ -1,12 +1,14 @@
 // Uso: npm run user:create -- email@x.com "Nome" "senha-forte"
-// Não existe cadastro público: o app é pessoal. Este script cria o usuário e as categorias padrão.
-import { tx, pool } from '../db.js';
-import { hashSenha } from '../auth.js';
-import { migrate } from '../migrate.js';
+// Cria uma CASA nova com o usuário como administrador e as categorias padrão.
+// Não existe cadastro público: membros da casa (ex.: cônjuge) são criados pelo admin em Conta → Usuários.
+import { tx, pool } from '../core/db.js';
+import { hashSenha } from '../core/auth.js';
+import { migrate } from '../core/migrate.js';
 
 const [email, nome, senha] = process.argv.slice(2);
-if (!email || !nome || !senha || senha.length < 10) {
+if (!email || !nome || !senha || senha.length < 10 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
   console.error('Uso: user:create <email> <nome> <senha (mín. 10 caracteres)>');
+  console.error('Exemplo: npm run user:create -- voce@email.com "Seu Nome" "senha-forte-aqui"');
   process.exit(1);
 }
 
@@ -20,14 +22,15 @@ const CATEGORIAS: [string, 'receita' | 'despesa', string][] = [
 
 await migrate();
 await tx(async (c) => {
+  const casa = (await c.query<{ id: string }>('insert into casas (nome) values ($1) returning id', [`Casa de ${nome.split(' ')[0]}`])).rows[0].id;
+  const pessoa = (await c.query<{ id: string }>('insert into pessoas (casa_id, nome) values ($1, $2) returning id', [casa, nome.split(' ')[0]])).rows[0].id;
   const u = await c.query(
-    'insert into usuarios (email, nome, senha_hash) values ($1,$2,$3) returning id',
-    [email.toLowerCase(), nome, await hashSenha(senha)],
+    `insert into usuarios (casa_id, email, nome, senha_hash, papel, pessoa_id) values ($1,$2,$3,$4,'admin',$5) returning id`,
+    [casa, email.toLowerCase(), nome, await hashSenha(senha), pessoa],
   );
-  const id = u.rows[0].id;
   for (const [n, t, cor] of CATEGORIAS) {
-    await c.query('insert into categorias (user_id, nome, tipo, cor) values ($1,$2,$3,$4)', [id, n, t, cor]);
+    await c.query('insert into categorias (casa_id, nome, tipo, cor) values ($1,$2,$3,$4)', [casa, n, t, cor]);
   }
-  console.log(`Usuário criado: ${email} (${id})`);
+  console.log(`Usuário criado: ${email} (${u.rows[0].id}), administrador da casa ${casa}`);
 });
 await pool.end();

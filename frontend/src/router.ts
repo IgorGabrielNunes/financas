@@ -1,22 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { token } from './api';
+import { token } from './core/api';
+import { sessao } from './core/store';
+import { MODULOS } from './modulos';
+
+// rotas antigas (antes dos módulos) continuam funcionando: favoritos e links salvos não quebram
+const LEGADO = ['mes', 'lancamentos', 'cartoes', 'faturas', 'carteira', 'fixos', 'pessoas', 'dividas'];
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: () => import('./views/Login.vue'), meta: { publica: true } },
-    { path: '/', component: () => import('./views/Inicio.vue') },
-    { path: '/mes/:ano?/:mes?', component: () => import('./views/Mes.vue') },
-    { path: '/lancamentos', component: () => import('./views/Lancamentos.vue') },
-    { path: '/cartoes', component: () => import('./views/Cartoes.vue') },
-    { path: '/cartoes/:id', component: () => import('./views/CartaoDetalhe.vue') },
-    { path: '/faturas/:id', component: () => import('./views/FaturaDetalhe.vue') },
-    { path: '/carteira', component: () => import('./views/Carteira.vue') },
-    { path: '/fixos', component: () => import('./views/Recorrencias.vue') },
-    { path: '/pessoas', component: () => import('./views/Pessoas.vue') },
-    { path: '/pessoas/:id', component: () => import('./views/PessoaDetalhe.vue') },
-    { path: '/dividas', component: () => import('./views/Dividas.vue') },
-    { path: '/mais', component: () => import('./views/Mais.vue') },
+    { path: '/login', component: () => import('./modulos/conta/Login.vue'), meta: { publica: true } },
+    { path: '/', component: () => import('./inicio/Inicio.vue') },
+    { path: '/mais', component: () => import('./inicio/Mais.vue') },
+    { path: '/conta', component: () => import('./modulos/conta/MinhaConta.vue') },
+    { path: '/conta/usuarios', component: () => import('./modulos/conta/Usuarios.vue') },
+    ...MODULOS.flatMap((m) => m.rotas),
+    ...LEGADO.map((r) => ({ path: `/${r}/:resto(.*)*`, redirect: (to: any) => `/financas${to.fullPath}` })),
     { path: '/:p(.*)*', redirect: '/' },
   ],
   scrollBehavior: () => ({ top: 0 }),
@@ -25,4 +24,6 @@ export const router = createRouter({
 router.beforeEach((to) => {
   if (!to.meta.publica && !token.value) return '/login';
   if (to.path === '/login' && token.value) return '/';
+  // senha temporária: obriga a trocar antes de usar o sistema
+  if (sessao.eu?.trocar_senha && to.path !== '/conta') return { path: '/conta', query: { trocar: '1' } };
 });
