@@ -15,6 +15,15 @@ import { comprovantesRoutes } from './routes/comprovantes.js';
 import { pessoasRoutes } from './routes/pessoas.js';
 import { trabalhoRoutes } from './routes/trabalho.js';
 
+// O navegador manda só protocolo + domínio no Origin. Normalizamos o que vier na variável
+// ("https://x.app/", "https://x.app/login", com espaços) para não quebrar o login por um detalhe de digitação.
+export function normalizarOrigens(valor: string): string[] {
+  return valor.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+    try { return new URL(s).origin; } catch { return s.replace(/\/+$/, ''); }
+  });
+}
+const origensPermitidas = normalizarOrigens(env.CORS_ORIGIN);
+
 export async function buildApp() {
   const app = Fastify({
     logger: process.env.NODE_ENV === 'test' ? false : { level: 'info', redact: ['req.headers.authorization'] },
@@ -22,7 +31,7 @@ export async function buildApp() {
   });
 
   await app.register(cors, {
-    origin: env.CORS_ORIGIN.split(',').map((s) => s.trim()),
+    origin: origensPermitidas,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
   await app.register(jwt, { secret: env.JWT_SECRET, sign: { expiresIn: '30d' } });
@@ -42,6 +51,8 @@ export async function buildApp() {
     req.log.error({ err }, 'erro não tratado');
     return reply.code(500).send({ erro: 'Erro interno' });
   });
+
+  app.log.info({ cors: origensPermitidas }, 'origens liberadas no CORS');
 
   app.get('/health', async () => {
     await pool.query('select 1');

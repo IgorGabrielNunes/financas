@@ -261,12 +261,13 @@ function escolherPendentes(e: Event) {
 <style scoped>
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button {
-  font: 600 0.875rem var(--texto); padding: 8px 12px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  font: 600 0.875rem var(--fonte); padding: 9px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
 }
-.chips button[aria-pressed='true'] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chips button:hover { border-color: var(--ink-3); color: var(--ink); }
+.chips button[aria-pressed='true'] { background: var(--marca); color: var(--marca-ink); border-color: var(--marca); }
 .chips button.credito[aria-pressed='true'] { background: var(--sai); border-color: var(--sai); color: #fff; }
-.previa { border-left: 3px solid var(--sai); padding: 8px 12px; background: var(--surface-2); border-radius: 0 var(--raio-s) var(--raio-s) 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.previa { padding: 12px 14px; background: var(--sai-tint); border-radius: var(--raio-s); display: grid; gap: 4px; font-size: 0.9rem; }
 .pendentes { margin: 0; padding-left: 18px; font-size: 0.875rem; }
-.acoes { position: sticky; bottom: 0; background: var(--surface); padding-top: 6px; }
+.acoes { position: sticky; bottom: -1px; background: var(--surface); padding: 12px 0 2px; margin-top: 4px; box-shadow: 0 -12px 14px -12px rgba(16, 33, 28, 0.18); }
 </style>

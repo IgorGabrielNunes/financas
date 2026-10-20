@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
+// tolera barra no fim da variável (https://api.com/ → https://api.com)
+const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3333').replace(/\/+$/, '');
 const KEY = 'caixa.token';
 
 function lerToken() {

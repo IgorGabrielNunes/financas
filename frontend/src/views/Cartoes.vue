@@ -72,10 +72,13 @@ const tot = computed(() => ({
 
 <style scoped>
 .grade-cartoes { display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
-.item { display: grid; gap: 12px; align-content: start; }
+.item { display: grid; gap: 14px; align-content: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio-l); padding: 12px 12px 14px; }
+.item dl { padding: 0 6px; }
+.item .acoes { padding: 0 6px; }
 .sem-link { text-decoration: none; }
 dl { margin: 0; display: grid; }
 dl div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+dl div:last-child { border-bottom: 0; }
 dt { color: var(--ink-2); }
 dd { margin: 0; font-weight: 600; text-align: right; }
 .acoes { justify-content: flex-start; }

@@ -21,10 +21,13 @@ function onInput(e: Event) {
 </template>
 
 <style scoped>
-.moeda { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--raio-s); padding-left: 12px; background: var(--surface); }
-.moeda:focus-within { outline: 2px solid var(--foco); outline-offset: -1px; }
+.moeda { display: flex; align-items: center; border: 1px solid var(--line-2); border-radius: var(--raio-s); padding-left: 14px; background: var(--surface); transition: border-color 0.12s, box-shadow 0.12s; }
+.moeda:hover { border-color: var(--ink-3); }
+.moeda:focus-within { border-color: var(--foco); box-shadow: 0 0 0 3px color-mix(in srgb, var(--foco) 22%, transparent); }
 .moeda span { color: var(--ink-3); font-weight: 600; }
-.moeda input { border: 0; outline: none; text-align: right; font-weight: 600; }
+.moeda input { border: 0; outline: none; text-align: right; font-weight: 600; box-shadow: none !important; }
 .moeda input:focus { outline: none; }
-.grande input { font: 700 2rem var(--display); padding: 8px 12px; }
+.grande { background: var(--surface-2); }
+.grande input { font: 750 2.2rem var(--fonte); letter-spacing: -0.03em; padding: 10px 14px; background: transparent; }
+.grande span { font-size: 1.1rem; }
 </style>

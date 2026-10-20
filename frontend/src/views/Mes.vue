@@ -51,7 +51,7 @@ const confirmar = (l: Lancamento) => abrirLancamento(l.id, { status: 'realizado'
     </header>
 
     <template v-if="v">
-      <section class="resumo painel">
+      <section class="kpis resumo">
         <div>
           <span>Entra</span>
           <b class="entra">{{ dinheiro(v.totais.receitas_centavos) }}</b>
@@ -141,20 +141,14 @@ const confirmar = (l: Lancamento) => abrirLancamento(l.id, { status: 'realizado'
 </template>
 
 <style scoped>
-.nav-mes { display: flex; align-items: center; gap: 10px; }
-.nav-mes h1 { min-width: 9ch; text-align: center; }
-.nav-mes .btn { font-size: 1.3rem; width: 42px; padding: 0; }
-.resumo { display: grid; grid-template-columns: repeat(4, 1fr); }
-.resumo > div { display: grid; gap: 2px; padding: 16px 18px; border-left: 1px solid var(--line); }
-.resumo > div:first-child { border-left: 0; }
-.resumo span { font-size: 0.8125rem; color: var(--ink-2); }
-.resumo b { font: 700 1.4rem var(--display); }
-.resumo small { color: var(--ink-3); font-size: 0.75rem; }
-.resumo .saldo { background: var(--surface-2); border-radius: 0 var(--raio-m) var(--raio-m) 0; }
+.nav-mes { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.nav-mes h1 { min-width: 10ch; text-align: center; white-space: nowrap; }
 @media (max-width: 760px) {
-  .resumo { grid-template-columns: 1fr 1fr; }
-  .resumo > div:nth-child(3) { border-left: 0; }
-  .resumo > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
-  .resumo .saldo { border-radius: 0 0 var(--raio-m) 0; }
+  .nav-mes { width: 100%; justify-content: space-between; }
+  .nav-mes h1 { font-size: 1.35rem; min-width: 0; }
 }
+.nav-mes h1::first-letter { text-transform: uppercase; }
+.nav-mes .btn { font-size: 1.25rem; width: 42px; padding: 0; }
+.resumo .saldo { background: var(--marca-tint); }
+.resumo .saldo span { color: var(--marca-tint-ink); }
 </style>

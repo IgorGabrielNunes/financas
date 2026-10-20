@@ -30,7 +30,7 @@ const contaPadrao = (cartaoId: string) => cadastros.cartoes.find((c) => c.id ===
       </button>
     </header>
 
-    <section class="painel resumo">
+    <section class="kpis">
       <div><span>Total</span><b class="sai">{{ dinheiro(f.total_centavos) }}</b></div>
       <div><span>Pago</span><b>{{ dinheiro(f.valor_pago_centavos) }}</b><small v-if="f.pago_em">em {{ dataBR(f.pago_em) }}</small></div>
       <div><span>Situação</span><b><span :class="['selo', f.status]">{{ STATUS_FATURA[f.status] }}</span></b></div>
@@ -62,11 +62,3 @@ const contaPadrao = (cartaoId: string) => cadastros.cartoes.find((c) => c.id ===
   </div>
 </template>
 
-<style scoped>
-.resumo { display: grid; grid-template-columns: repeat(3, 1fr); }
-.resumo > div { display: grid; gap: 2px; padding: 16px 18px; border-left: 1px solid var(--line); align-content: start; }
-.resumo > div:first-child { border-left: 0; }
-.resumo span:first-child { font-size: 0.8125rem; color: var(--ink-2); }
-.resumo b { font: 700 1.4rem var(--display); }
-.resumo small { color: var(--ink-3); }
-</style>

@@ -51,13 +51,26 @@ const regua = computed(() => {
 const maiorMes = computed(() => Math.max(1, ...(d.value?.projecao.map((p) => Math.max(p.receitas_centavos, p.despesas_centavos + p.faturas_centavos)) ?? [1])));
 const contasAtivas = computed(() => d.value?.contas.filter((c) => c.ativa) ?? []);
 const semCadastro = computed(() => d.value && !d.value.contas.length);
+const saudacao = computed(() => {
+  const h = +new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hour12: false, timeZone: 'America/Sao_Paulo' }).format(new Date());
+  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+});
+const hojeLongo = computed(() => new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date()));
 </script>
 
 <template>
   <div class="pagina">
+    <header class="topo">
+      <div>
+        <p class="suave data">{{ hojeLongo }}</p>
+        <h1>{{ saudacao }}</h1>
+      </div>
+      <button class="btn primario so-desktop" @click="abrirLancamento()">Lançar</button>
+    </header>
+
     <p v-if="erro" class="erro-form">{{ erro }}</p>
 
-    <section v-if="semCadastro" class="painel recheado vazio">
+    <section v-if="semCadastro" class="painel vazio">
       <h2>Comece pela sua conta</h2>
       <p>Cadastre a conta onde o salário cai e o saldo de hoje. Depois, os cartões e os fixos do mês.</p>
       <RouterLink class="btn primario" to="/carteira">Cadastrar conta</RouterLink>
@@ -65,52 +78,54 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
 
     <template v-if="d && disp && regua">
       <!-- A resposta principal do app: quanto dá para gastar sem comprometer o que já está prometido -->
-      <section class="hero">
-        <p class="contexto">
-          Até {{ d.proxima_receita ? dataCurta(d.horizonte) : 'o fim do mês' }}
-          <span class="suave">({{ dias }} {{ dias === 1 ? 'dia' : 'dias' }})</span>, dá para gastar
-        </p>
-        <h1 :class="['numero', { negativo: disp.disponivel_centavos < 0 }]">{{ dinheiro(disp.disponivel_centavos) }}</h1>
-        <p v-if="disp.disponivel_centavos > 0 && dias > 0" class="suave">
-          Isso dá {{ dinheiro(porDia) }} por dia<template v-if="d.proxima_receita">. Próxima entrada: {{ d.proxima_receita.descricao }}</template>.
-        </p>
-        <p v-else-if="disp.disponivel_centavos < 0" class="sai">O que já está comprometido passa do que você tem. Segure gastos novos.</p>
-
-        <div v-if="d.receitas_a_confirmar.length" class="pendencia">
-          <p>
-            <b>Entrada não confirmada:</b>
-            <template v-for="(r, i) in d.receitas_a_confirmar" :key="r.id">{{ i ? ', ' : ' ' }}{{ r.descricao }} de {{ dataCurta(r.data) }} ({{ dinheiro(r.valor_centavos) }})</template>.
-            Enquanto não confirmar, ela fica fora do valor acima.
+      <section :class="['destaque', { negativo: disp.disponivel_centavos < 0 }]">
+        <div class="principal">
+          <p class="rotulo">
+            Livre para gastar até {{ d.proxima_receita ? dataCurta(d.horizonte) : 'o fim do mês' }}
+            <span>{{ dias }} {{ dias === 1 ? 'dia' : 'dias' }}</span>
           </p>
-          <button v-for="r in d.receitas_a_confirmar" :key="r.id" class="btn" @click="abrirLancamento(r.id, { status: 'realizado' })">Confirmar {{ r.descricao }}</button>
-        </div>
+          <p class="numero">{{ dinheiro(disp.disponivel_centavos) }}</p>
+          <p v-if="disp.disponivel_centavos > 0 && dias > 0" class="apoio">
+            {{ dinheiro(porDia) }} por dia<template v-if="d.proxima_receita">, até {{ d.proxima_receita.descricao }}</template>
+          </p>
+          <p v-else-if="disp.disponivel_centavos < 0" class="apoio">O que já está comprometido passa do que você tem. Segure gastos novos.</p>
 
-        <div class="regua" role="img" :aria-label="`Fixos ${dinheiro(disp.despesas_previstas_centavos)}, faturas ${dinheiro(disp.faturas_a_pagar_centavos)}, livre ${dinheiro(disp.disponivel_centavos)}`">
-          <i class="fixos" :style="{ width: regua.fixos }" />
-          <i class="faturas" :style="{ width: regua.faturas }" />
-          <i class="livre" :style="{ width: regua.livre }" />
+          <div class="regua" role="img" :aria-label="`Fixos ${dinheiro(disp.despesas_previstas_centavos)}, faturas ${dinheiro(disp.faturas_a_pagar_centavos)}, livre ${dinheiro(disp.disponivel_centavos)}`">
+            <i class="fixos" :style="{ width: regua.fixos }" />
+            <i class="faturas" :style="{ width: regua.faturas }" />
+            <i class="livre" :style="{ width: regua.livre }" />
+          </div>
         </div>
 
         <dl class="conta">
           <div><dt>Nas contas hoje</dt><dd>{{ dinheiro(disp.saldo_contas_centavos) }}</dd></div>
-          <div><dt>A receber até lá</dt><dd class="entra">+ {{ dinheiro(disp.receitas_previstas_centavos) }}</dd></div>
-          <div><dt><i class="pino fixos" />Contas e fixos a pagar</dt><dd class="previsto">− {{ dinheiro(disp.despesas_previstas_centavos) }}</dd></div>
-          <div><dt><i class="pino faturas" />Faturas que vencem</dt><dd class="sai">− {{ dinheiro(disp.faturas_a_pagar_centavos) }}</dd></div>
+          <div><dt>A receber até lá</dt><dd>+ {{ dinheiro(disp.receitas_previstas_centavos) }}</dd></div>
+          <div><dt><i class="pino fixos" />Contas e fixos</dt><dd>− {{ dinheiro(disp.despesas_previstas_centavos) }}</dd></div>
+          <div><dt><i class="pino faturas" />Faturas que vencem</dt><dd>− {{ dinheiro(disp.faturas_a_pagar_centavos) }}</dd></div>
         </dl>
       </section>
 
+      <div v-if="d.receitas_a_confirmar.length" class="pendencia">
+        <p>
+          <b>Entrada não confirmada:</b>
+          <template v-for="(r, i) in d.receitas_a_confirmar" :key="r.id">{{ i ? ', ' : ' ' }}{{ r.descricao }} de {{ dataCurta(r.data) }} ({{ dinheiro(r.valor_centavos) }})</template>.
+          Fica fora do valor acima até você confirmar.
+        </p>
+        <button v-for="r in d.receitas_a_confirmar" :key="r.id" class="btn" @click="abrirLancamento(r.id, { status: 'realizado' })">Confirmar {{ r.descricao }}</button>
+      </div>
+
       <div class="grade-2">
         <section class="secao">
-          <header><h2>Cartões</h2><RouterLink class="btn link" to="/cartoes">Central de cartões</RouterLink></header>
+          <header><h2>Cartões</h2><RouterLink class="btn link" to="/cartoes">Ver todos</RouterLink></header>
           <ul v-if="d.cartoes.length" class="lista painel">
             <li v-for="c in d.cartoes" :key="c.id" class="clicavel" @click="$router.push(`/cartoes/${c.id}`)">
-              <span class="pin" :style="{ background: c.cor }" />
+              <span class="ico" :style="{ '--c': c.cor }"><svg viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5zM3 10.5h18" /></svg></span>
               <div>
                 <div class="titulo">{{ c.nome }}</div>
-                <div class="meta">Fatura de {{ mesAno(c.fatura_atual.competencia) }}: {{ dinheiro(c.fatura_atual.total_centavos) }}, livre {{ dinheiro(c.livre_centavos) }}</div>
+                <div class="meta">Fatura de {{ mesAno(c.fatura_atual.competencia) }}: {{ dinheiro(c.fatura_atual.total_centavos) }}</div>
               </div>
               <div class="valor">
-                <div class="miudo suave">pode passar</div>
+                <div class="meta">pode passar</div>
                 {{ dinheiro(c.gasto_seguro_centavos) }}
               </div>
             </li>
@@ -123,8 +138,11 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
           <header><h2>Contas</h2><RouterLink class="btn link" to="/carteira">Carteira</RouterLink></header>
           <ul class="lista painel">
             <li v-for="c in contasAtivas" :key="c.id">
-              <span class="pin" :style="{ background: c.cor }" />
-              <div class="titulo">{{ c.nome }}</div>
+              <span class="ico" :style="{ '--c': c.cor }">{{ c.nome.slice(0, 1).toUpperCase() }}</span>
+              <div>
+                <div class="titulo">{{ c.nome }}</div>
+                <div v-if="c.pessoa_nome" class="meta">{{ c.pessoa_nome }}</div>
+              </div>
               <div :class="['valor', { sai: c.saldo_centavos < 0 }]">{{ dinheiro(c.saldo_centavos) }}</div>
             </li>
           </ul>
@@ -133,16 +151,16 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
 
       <section v-if="d.dividas.qtd || d.dividas.inadimplencias_qtd || d.dividas.renda_mensal_centavos" class="secao">
         <header><h2>Renda e dívidas</h2><RouterLink class="btn link" to="/dividas">Dívidas</RouterLink></header>
-        <div class="painel faixa">
-          <div><span>Renda líquida da casa</span><b>{{ dinheiro(d.dividas.renda_mensal_centavos) }}</b></div>
+        <div class="kpis">
+          <div><span>Renda líquida da casa</span><b>{{ dinheiro(d.dividas.renda_mensal_centavos) }}</b><small>por mês</small></div>
           <div>
-            <span>Parcelas de dívidas por mês</span>
+            <span>Parcelas de dívidas</span>
             <b>{{ dinheiro(d.dividas.parcelas_mensais_centavos) }}</b>
             <small v-if="d.dividas.comprometimento_pct !== null" :class="{ sai: d.dividas.comprometimento_pct > 30 }">{{ pct(d.dividas.comprometimento_pct) }} da renda</small>
-            <small v-if="d.dividas.desconto_folha_centavos">+ {{ dinheiro(d.dividas.desconto_folha_centavos) }} descontados em folha</small>
+            <small v-if="d.dividas.desconto_folha_centavos">+ {{ dinheiro(d.dividas.desconto_folha_centavos) }} em folha</small>
           </div>
           <div><span>Falta pagar em dívidas</span><b class="sai">{{ dinheiro(d.dividas.saldo_centavos) }}</b></div>
-          <RouterLink to="/dividas?aba=inadimplencia" class="sem-sublinhado">
+          <RouterLink to="/dividas?aba=inadimplencia" class="atalho">
             <span>Em atraso</span>
             <b :class="{ sai: d.dividas.inadimplencias_qtd }">{{ d.dividas.inadimplencias_qtd ? dinheiro(d.dividas.inadimplencias_em_aberto_centavos) : 'Nada' }}</b>
             <small v-if="d.dividas.inadimplencias_qtd">{{ d.dividas.inadimplencias_qtd }} {{ d.dividas.inadimplencias_qtd === 1 ? 'pendência' : 'pendências' }}</small>
@@ -153,31 +171,37 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
       <section class="secao">
         <header>
           <h2>Próximos 6 meses</h2>
-          <span>Quanto da receita de cada mês já está prometido</span>
+          <span>quanto da receita já está prometido</span>
         </header>
-        <div class="painel recheado meses">
-          <RouterLink v-for="p in d.projecao" :key="p.competencia" class="mes" :to="`/mes/${p.competencia.slice(0, 4)}/${+p.competencia.slice(5, 7)}`">
-            <div class="barras">
-              <div class="receita" :style="{ height: (p.receitas_centavos / maiorMes) * 100 + '%' }" />
-              <div class="saida">
-                <i class="faturas" :style="{ height: (p.faturas_centavos / maiorMes) * 100 + '%' }" />
-                <i class="fixos" :style="{ height: (p.despesas_centavos / maiorMes) * 100 + '%' }" />
+        <div class="painel recheado">
+          <div class="meses">
+            <RouterLink v-for="p in d.projecao" :key="p.competencia" class="mes" :to="`/mes/${p.competencia.slice(0, 4)}/${+p.competencia.slice(5, 7)}`">
+              <div class="barras">
+                <div class="receita" :style="{ height: (p.receitas_centavos / maiorMes) * 100 + '%' }" />
+                <div class="saida">
+                  <i class="faturas" :style="{ height: (p.faturas_centavos / maiorMes) * 100 + '%' }" />
+                  <i class="fixos" :style="{ height: (p.despesas_centavos / maiorMes) * 100 + '%' }" />
+                </div>
               </div>
-            </div>
-            <b>{{ mesAno(p.competencia) }}</b>
-            <span :class="p.saldo_centavos < 0 ? 'sai' : 'suave'">{{ p.comprometido_pct === null ? 'sem receita' : pct(p.comprometido_pct) }}</span>
-          </RouterLink>
+              <b>{{ mesAno(p.competencia) }}</b>
+              <span :class="['pct', { sai: p.saldo_centavos < 0 }]">{{ p.comprometido_pct === null ? 'sem receita' : pct(p.comprometido_pct) }}</span>
+            </RouterLink>
+          </div>
+          <ul class="legenda">
+            <li><i class="receita-l" />Receitas previstas</li>
+            <li><i class="fixos" />Contas e fixos</li>
+            <li><i class="faturas" />Faturas</li>
+          </ul>
         </div>
-        <p class="miudo suave">Barra clara: receitas previstas. Barra escura: fixos (âmbar) e faturas (vinho). Parcelas futuras aparecem aqui antes de virarem problema.</p>
       </section>
 
       <section v-if="disp.faturas.length" class="secao">
         <header><h2>Faturas até {{ dataCurta(d.horizonte) }}</h2></header>
         <ul class="lista painel">
           <li v-for="f in disp.faturas" :key="f.id" class="clicavel" @click="$router.push(`/faturas/${f.id}`)">
-            <span class="pin" :style="{ background: f.cartao_cor }" />
+            <span class="ico" :style="{ '--c': f.cartao_cor }"><svg viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5zM3 10.5h18" /></svg></span>
             <div>
-              <div class="titulo">{{ f.cartao_nome }}, {{ mesAno(f.competencia) }}</div>
+              <div class="titulo">{{ f.cartao_nome }}, fatura de {{ mesAno(f.competencia) }}</div>
               <div class="meta">Vence {{ dataCurta(f.data_vencimento) }}</div>
             </div>
             <div class="valor sai">{{ dinheiro(f.em_aberto_centavos) }}</div>
@@ -189,47 +213,70 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
 </template>
 
 <style scoped>
-.hero { display: grid; gap: 10px; padding: 8px 0 4px; }
-.contexto { font-size: 1.05rem; max-width: 40ch; }
-.numero { font-size: clamp(2.8rem, 11vw, 4.75rem); font-weight: 700; letter-spacing: -0.035em; line-height: 1; color: var(--entra); }
-.numero.negativo { color: var(--sai); }
+.topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.topo .data { font-size: 0.875rem; margin-bottom: 4px; }
+.topo .data::first-letter { text-transform: uppercase; }
 
-.pendencia { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border-left: 3px solid var(--previsto); background: var(--surface); border-radius: 0 var(--raio-s) var(--raio-s) 0; font-size: 0.9rem; }
-.pendencia p { flex: 1 1 320px; }
-.regua { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); margin-top: 8px; }
-.regua i { display: block; height: 100%; }
-.fixos { background: var(--previsto); }
-.faturas { background: var(--sai); }
-.livre { background: var(--entra); }
-
-.conta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 4px 24px; margin: 4px 0 0; }
-.conta div { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
-.conta dt { color: var(--ink-2); font-size: 0.875rem; display: flex; align-items: center; gap: 6px; }
-.conta dd { margin: 0; font-weight: 600; white-space: nowrap; }
-.conta div { align-items: baseline; }
-.pino { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-
-.faixa { display: grid; grid-template-columns: repeat(4, 1fr); }
-.faixa > * { display: grid; gap: 2px; align-content: start; padding: 16px 18px; border-left: 1px solid var(--line); color: inherit; }
-.faixa > :first-child { border-left: 0; }
-.faixa span { font-size: 0.8125rem; color: var(--ink-2); }
-.faixa b { font: 700 1.3rem var(--display); }
-.faixa small { font-size: 0.75rem; color: var(--ink-3); }
-.faixa small.sai { color: var(--sai); }
-.sem-sublinhado { text-decoration: none; }
-.sem-sublinhado:hover { background: var(--surface-2); }
-@media (max-width: 760px) {
-  .faixa { grid-template-columns: 1fr 1fr; }
-  .faixa > :nth-child(3) { border-left: 0; }
-  .faixa > :nth-child(n + 3) { border-top: 1px solid var(--line); }
+/* ---------------------------------------------------- painel de destaque */
+.destaque {
+  --t: rgba(255, 255, 255, 0.72);
+  background: var(--marca); color: #fff; border-radius: var(--raio-l);
+  padding: 28px 30px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 28px 40px; align-items: end;
+  box-shadow: 0 1px 2px rgba(15, 75, 58, 0.2), 0 18px 40px -18px rgba(15, 75, 58, 0.55);
 }
+.destaque.negativo { background: #7a2238; }
+.principal { display: grid; gap: 6px; min-width: 0; }
+.rotulo { color: var(--t); font-weight: 500; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rotulo span { font-size: 0.75rem; font-weight: 600; color: #fff; background: rgba(255, 255, 255, 0.14); padding: 3px 9px; border-radius: 999px; }
+.numero { font-size: clamp(2.6rem, 8vw, 4.4rem); font-weight: 750; letter-spacing: -0.045em; line-height: 1.02; }
+.apoio { color: var(--t); }
+.regua { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: rgba(255, 255, 255, 0.14); margin-top: 16px; gap: 2px; }
+.regua i { display: block; height: 100%; }
+.regua i:first-child { border-radius: 6px 0 0 6px; }
+.regua .fixos { background: #f2b25b; }
+.regua .faturas { background: #f28aa5; }
+.regua .livre { background: #8fe0bd; }
+
+.conta { margin: 0; display: grid; gap: 0; }
+.conta div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.conta div:last-child { border-bottom: 0; }
+.conta dt { color: var(--t); font-size: 0.875rem; display: flex; align-items: center; gap: 8px; }
+.conta dd { margin: 0; font-weight: 650; white-space: nowrap; }
+.pino { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.pino.fixos { background: #f2b25b; }
+.pino.faturas { background: #f28aa5; }
+@media (max-width: 760px) {
+  .destaque { grid-template-columns: 1fr; padding: 22px 20px; border-radius: var(--raio-m); gap: 18px; }
+}
+
+.pendencia {
+  display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 14px 16px;
+  background: var(--previsto-tint); border-radius: var(--raio-m); font-size: 0.9rem;
+}
+.pendencia p { flex: 1 1 320px; }
+
+.atalho:hover { background: var(--surface-2); }
+
+/* ------------------------------------------------------------ projeção */
 .meses { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-@media (max-width: 760px) { .meses { gap: 2px; padding: 12px 8px; } .mes { font-size: 0.75rem; padding: 4px 0; } }
-.mes { display: grid; gap: 4px; justify-items: center; text-decoration: none; font-size: 0.8125rem; padding: 4px; border-radius: var(--raio-s); }
+.mes { display: grid; gap: 4px; justify-items: center; text-decoration: none; font-size: 0.8125rem; padding: 8px 4px 6px; border-radius: var(--raio-s); }
 .mes:hover { background: var(--surface-2); }
-.barras { height: 120px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
-.receita { width: 14px; background: color-mix(in srgb, var(--entra) 35%, transparent); border-radius: 3px 3px 0 0; }
-.saida { width: 14px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.mes b { font-weight: 600; }
+.pct { color: var(--ink-3); font-size: 0.8125rem; }
+.barras { height: 128px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; margin-bottom: 6px; }
+.receita { width: 16px; background: color-mix(in srgb, var(--entra) 28%, var(--surface)); border-radius: 5px 5px 2px 2px; }
+.saida { width: 16px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
 .saida i { display: block; }
-.saida i:first-child { border-radius: 3px 3px 0 0; }
+.saida i:first-child { border-radius: 5px 5px 0 0; }
+.saida .fixos, .legenda .fixos { background: var(--previsto); }
+.saida .faturas, .legenda .faturas { background: var(--sai); }
+.legenda { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--ink-2); font-size: 0.8125rem; }
+.legenda li { display: flex; align-items: center; gap: 8px; }
+.legenda i { width: 10px; height: 10px; border-radius: 3px; }
+.legenda .receita-l { background: color-mix(in srgb, var(--entra) 28%, var(--surface)); }
+@media (max-width: 760px) {
+  .meses { gap: 0; }
+  .mes { font-size: 0.72rem; padding: 6px 0; }
+  .receita, .saida { width: 12px; }
+}
 </style>
