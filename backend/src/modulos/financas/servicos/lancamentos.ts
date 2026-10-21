@@ -73,7 +73,7 @@ async function gerarParcelas(c: PoolClient, userId: string, lancamentoId: string
 }
 
 /** Impede alterar/excluir compra cujas parcelas já estão em fatura com pagamento. */
-async function bloquearSeFaturaPaga(c: PoolClient, lancamentoId: string) {
+export async function bloquearSeFaturaPaga(c: PoolClient, lancamentoId: string) {
   const r = await c.query(
     `select 1 from parcelas p join faturas f on f.id = p.fatura_id
       where p.lancamento_id = $1 and f.valor_pago_centavos > 0 limit 1`,

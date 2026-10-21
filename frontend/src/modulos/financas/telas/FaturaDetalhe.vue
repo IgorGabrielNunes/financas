@@ -25,9 +25,12 @@ const contaPadrao = (cartaoId: string) => cadastros.cartoes.find((c) => c.id ===
         <h1>Fatura de {{ mesAno(f.competencia) }}</h1>
         <p>Fecha {{ dataCurta(f.data_fechamento) }}, vence {{ dataCurta(f.data_vencimento) }}</p>
       </div>
+      <div class="botoes-topo">
+      <RouterLink class="btn" :to="`/financas/importar?cartao=${f.cartao_id}&venc=${f.competencia.slice(0, 7)}`">Importar arquivo</RouterLink>
       <button v-if="f.total_centavos > 0" class="btn primario" @click="pagar = true">
         {{ f.valor_pago_centavos > 0 ? 'Ajustar pagamento' : 'Registrar pagamento' }}
       </button>
+      </div>
     </header>
 
     <section class="kpis">
@@ -62,3 +65,7 @@ const contaPadrao = (cartaoId: string) => cadastros.cartoes.find((c) => c.id ===
   </div>
 </template>
 
+
+<style scoped>
+.botoes-topo { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
