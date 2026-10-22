@@ -39,6 +39,7 @@ export const MODULOS: Modulo[] = [
       { to: '/financas/fixos', r: 'Fixos do mês', icone: I.fixos },
       { to: '/financas/pessoas', r: 'Pessoas e salários', icone: I.pessoas },
       { to: '/financas/dividas', r: 'Dívidas', icone: I.dividas },
+      { to: '/financas/importar', r: 'Importar fatura', icone: I.lanc },
     ],
     rotas: [
       { path: '/financas', redirect: '/financas/painel' },
@@ -53,6 +54,7 @@ export const MODULOS: Modulo[] = [
       { path: '/financas/pessoas', component: F('Pessoas') },
       { path: '/financas/pessoas/:id', component: F('PessoaDetalhe') },
       { path: '/financas/dividas', component: F('Dividas') },
+      { path: '/financas/importar', component: F('Importar') },
     ],
   },
   { id: 'tarefas', nome: 'Tarefas', icone: I.tarefas, base: '/tarefas', descricao: 'O que fazer hoje e o que já foi feito',

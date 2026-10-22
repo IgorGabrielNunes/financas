@@ -29,7 +29,10 @@ const tot = computed(() => ({
           {{ dinheiro(tot.futuras) }} já em faturas futuras.
         </p>
       </div>
-      <button class="btn primario" @click="form = { aberto: true, cartao: null }">Adicionar cartão</button>
+      <div class="botoes-topo">
+        <RouterLink v-if="ativos.length" class="btn" to="/financas/importar">Importar fatura</RouterLink>
+        <button class="btn primario" @click="form = { aberto: true, cartao: null }">Adicionar cartão</button>
+      </div>
     </header>
 
     <div v-if="!cartoes.length" class="painel vazio">
@@ -82,4 +85,5 @@ dl div:last-child { border-bottom: 0; }
 dt { color: var(--ink-2); }
 dd { margin: 0; font-weight: 600; text-align: right; }
 .acoes { justify-content: flex-start; }
+.botoes-topo { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

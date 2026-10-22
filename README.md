@@ -183,6 +183,26 @@ o Worker abre **uma** conexão WebSocket com o Neon por execução (o modo HTTP 
 estouraria o limite de 50 por execução). Alternativa sem Cloudflare: qualquer cron externo chamando
 `POST /interno/avisos/disparar` com `Authorization: Bearer $AVISOS_TOKEN` (mas aí acorda a API no Render).
 
+## Importar fatura do cartão (CSV, OFX ou JSON)
+
+Finanças → **Importar fatura** (ou o botão na tela do cartão/fatura). Escolha o cartão e o mês da fatura, solte o arquivo, revise a prévia e confirme.
+
+| Banco | Onde baixar | Formato |
+|---|---|---|
+| Nubank | App → Fatura → ⋯ → Exportar fatura (chega por e-mail) | CSV |
+| Inter, C6 | App/Internet Banking → Cartão → Fatura → Exportar | CSV |
+| Itaú, BB, Bradesco, Santander | Internet Banking → Cartão → Fatura → Salvar como OFX/Money | OFX |
+| Qualquer outro | Monte um JSON `[{"data":"2026-10-05","descricao":"...","valor":12.5,"parcela":"2/10"}]` | JSON |
+
+- **Nada é gravado na prévia.** Dá para editar descrição e categoria, desmarcar linhas e aplicar uma categoria em massa.
+- **Parcelas:** a linha "Loja 3/10" vira uma compra de 10× com 2 parcelas já pagas, ou seja, só entra da parcela 3 em diante. No mês seguinte, o "4/10" é reconhecido como **duplicado** e não lança em dobro.
+- **Duplicados:** reimportar o mesmo arquivo não cria nada. À vista: mesmo dia e valor. Parcelada: mesma quantidade de parcelas, descrição parecida e valor da parcela.
+- **Categorias:** sugeridas pelo seu histórico (descrição igual já categorizada), depois pela categoria do banco, depois por palavras-chave.
+- **Fatura errada:** se as compras caem em outra fatura pelo dia de fechamento cadastrado, a prévia sugere a fatura certa.
+- **Pagamentos e estornos** (valores negativos) são ignorados. Registre o pagamento da fatura normalmente.
+- **Desfazer:** cada importação é um lote e o histórico mostra o botão *Desfazer*. Ele fica bloqueado se alguma fatura do lote já tiver pagamento registrado.
+- PDF não é suportado. O texto de fatura em PDF varia demais entre bancos para ser confiável.
+
 ## Regras de domínio (backend/src/domain/fatura.ts — testadas)
 
 | Regra | Decisão |
