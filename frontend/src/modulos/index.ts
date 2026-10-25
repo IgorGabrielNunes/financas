@@ -23,19 +23,23 @@ export const I = {
   profissional: 'M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M4 8.5A1.5 1.5 0 0 1 5.5 7h13A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5zM4 12.5h16',
   conta: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 21c.8-4 3.8-6.5 7.5-6.5s6.7 2.5 7.5 6.5',
   mais: 'M5 12h.01M12 12h.01M19 12h.01',
+  metas: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 12h.01',
+  investimentos: 'M4 18l5.5-5.5 4 4L20 9.5M15 9.5h5v5',
 };
 
 const F = (n: string) => () => import(`./financas/telas/${n}.vue`);
 
 export const MODULOS: Modulo[] = [
   {
-    id: 'financas', nome: 'Finanças', icone: I.financas, base: '/financas', descricao: 'Contas, cartões, fixos, salários e dívidas',
+    id: 'financas', nome: 'Finanças', icone: I.financas, base: '/financas', descricao: 'Contas, cartões, fixos, metas, investimentos e dívidas',
     itens: [
       { to: '/financas/painel', r: 'Visão geral', icone: I.inicio },
       { to: '/financas/mes', r: 'Visão do mês', icone: I.mes },
       { to: '/financas/lancamentos', r: 'Lançamentos', icone: I.lanc },
       { to: '/financas/cartoes', r: 'Cartões', icone: I.cartoes },
       { to: '/financas/carteira', r: 'Carteira', icone: I.carteira },
+      { to: '/financas/metas', r: 'Metas', icone: I.metas },
+      { to: '/financas/investimentos', r: 'Investimentos', icone: I.investimentos },
       { to: '/financas/fixos', r: 'Fixos do mês', icone: I.fixos },
       { to: '/financas/pessoas', r: 'Pessoas e salários', icone: I.pessoas },
       { to: '/financas/dividas', r: 'Dívidas', icone: I.dividas },
@@ -50,6 +54,8 @@ export const MODULOS: Modulo[] = [
       { path: '/financas/cartoes/:id', component: F('CartaoDetalhe') },
       { path: '/financas/faturas/:id', component: F('FaturaDetalhe') },
       { path: '/financas/carteira', component: F('Carteira') },
+      { path: '/financas/metas', component: F('Metas') },
+      { path: '/financas/investimentos', component: F('Investimentos') },
       { path: '/financas/fixos', component: F('Recorrencias') },
       { path: '/financas/pessoas', component: F('Pessoas') },
       { path: '/financas/pessoas/:id', component: F('PessoaDetalhe') },

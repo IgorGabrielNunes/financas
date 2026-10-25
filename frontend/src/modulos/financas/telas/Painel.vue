@@ -19,6 +19,12 @@ type Dash = {
     qtd: number; saldo_centavos: number; parcelas_mensais_centavos: number; desconto_folha_centavos: number;
     renda_mensal_centavos: number; comprometimento_pct: number | null; inadimplencias_qtd: number; inadimplencias_em_aberto_centavos: number;
   };
+  patrimonio: {
+    investimentos: { saldo_bruto_centavos: number; rendimento_mes_centavos: number; rendimento_bruto_centavos: number; qtd: number };
+    contas_reserva_centavos: number;
+    metas_guardado_centavos: number;
+    metas: { id: string; nome: string; icone: string | null; cor: string; pct: number; guardado_centavos: number; valor_alvo_centavos: number; data_alvo: string | null }[];
+  };
   projecao: { competencia: string; receitas_centavos: number; despesas_centavos: number; faturas_centavos: number; saldo_centavos: number; comprometido_pct: number | null }[];
 };
 
@@ -138,11 +144,43 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
                 <div class="titulo">{{ c.nome }}</div>
                 <div v-if="c.pessoa_nome" class="meta">{{ c.pessoa_nome }}</div>
               </div>
-              <div :class="['valor', { sai: c.saldo_centavos < 0 }]">{{ dinheiro(c.saldo_centavos) }}</div>
+              <div class="valor">
+                <span :class="{ sai: c.saldo_centavos < 0 }">{{ dinheiro(c.saldo_centavos) }}</span>
+                <div v-if="c.investido_centavos" class="meta">+ {{ dinheiro(c.investido_centavos) }} investido</div>
+              </div>
             </li>
           </ul>
         </section>
       </div>
+
+      <section v-if="d.patrimonio.investimentos.qtd || d.patrimonio.metas.length || d.patrimonio.contas_reserva_centavos" class="secao">
+        <header><h2>Guardado e investido</h2><span>fora do valor livre acima</span></header>
+        <div class="kpis">
+          <RouterLink to="/financas/investimentos" class="atalho">
+            <span>Investido</span><b>{{ dinheiro(d.patrimonio.investimentos.saldo_bruto_centavos) }}</b>
+            <small>+ {{ dinheiro(d.patrimonio.investimentos.rendimento_bruto_centavos) }} de rendimento</small>
+          </RouterLink>
+          <RouterLink to="/financas/investimentos" class="atalho">
+            <span>Rende por mês</span><b class="entra">{{ dinheiro(d.patrimonio.investimentos.rendimento_mes_centavos) }}</b><small>nas taxas de hoje</small>
+          </RouterLink>
+          <RouterLink to="/financas/metas" class="atalho">
+            <span>Separado em metas</span><b>{{ dinheiro(d.patrimonio.metas_guardado_centavos) }}</b><small>fora de investimentos</small>
+          </RouterLink>
+          <RouterLink v-if="d.patrimonio.contas_reserva_centavos" to="/financas/carteira" class="atalho">
+            <span>Contas de reserva</span><b>{{ dinheiro(d.patrimonio.contas_reserva_centavos) }}</b><small>tipo investimento/reserva</small>
+          </RouterLink>
+        </div>
+        <ul v-if="d.patrimonio.metas.length" class="metas painel">
+          <li v-for="m in d.patrimonio.metas" :key="m.id">
+            <RouterLink to="/financas/metas">
+              <span class="m-ico">{{ m.icone ?? '🎯' }}</span>
+              <span class="m-txt"><b>{{ m.nome }}</b><small>{{ dinheiro(m.guardado_centavos) }} de {{ dinheiro(m.valor_alvo_centavos) }}</small></span>
+              <span class="m-pct">{{ pct(m.pct) }}</span>
+              <span class="m-barra"><i :style="{ width: m.pct + '%', background: m.cor }" /></span>
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
 
       <section v-if="d.dividas.qtd || d.dividas.inadimplencias_qtd || d.dividas.renda_mensal_centavos" class="secao">
         <header><h2>Renda e dívidas</h2><RouterLink class="btn link" to="/financas/dividas">Dívidas</RouterLink></header>
@@ -251,6 +289,17 @@ const semCadastro = computed(() => d.value && !d.value.contas.length);
 .pendencia p { flex: 1 1 320px; }
 
 .atalho:hover { background: var(--surface-2); }
+
+.metas { list-style: none; margin: 0; padding: 6px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 4px; }
+.metas a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'ico txt pct' 'barra barra barra'; gap: 6px 12px; align-items: center; padding: 12px; border-radius: var(--raio-s); text-decoration: none; color: inherit; }
+.metas a:hover { background: var(--surface-2); }
+.m-ico { grid-area: ico; font-size: 1.3rem; }
+.m-txt { grid-area: txt; display: grid; min-width: 0; }
+.m-txt b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-txt small { color: var(--ink-3); font-size: 0.8125rem; }
+.m-pct { grid-area: pct; font-weight: 650; font-size: 0.875rem; }
+.m-barra { grid-area: barra; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.m-barra i { display: block; height: 100%; border-radius: 3px; }
 
 /* ------------------------------------------------------------ projeção */
 .meses { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
