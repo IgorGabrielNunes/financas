@@ -47,7 +47,7 @@ async function excluir() {
             <option value="corrente">Conta corrente</option>
             <option value="poupanca">Poupança</option>
             <option value="carteira">Dinheiro em espécie</option>
-            <option value="investimento">Investimento / reserva</option>
+            <option value="investimento">Investimento / reserva (fora do disponível)</option>
           </select>
         </label>
         <label class="campo"><span>Cor</span><input v-model="f.cor" type="color" /></label>

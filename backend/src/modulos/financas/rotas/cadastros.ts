@@ -73,7 +73,9 @@ export async function cadastrosRoutes(app: FastifyInstance) {
     const contaId = parse(id, (req.params as any).id);
     // apagar uma conta com histórico "sumiria" com o dinheiro dos relatórios: só inativar
     const uso = await pool.query(
-      `select 1 from lancamentos where conta_id = $1 union all select 1 from faturas where conta_pagamento_id = $1 limit 1`,
+      `select 1 from lancamentos where conta_id = $1 union all select 1 from faturas where conta_pagamento_id = $1
+       union all select 1 from investimentos where conta_id = $1 union all select 1 from investimentos_movimentos where conta_id = $1
+       union all select 1 from metas_movimentos where conta_id = $1 limit 1`,
       [contaId],
     );
     if (uso.rowCount) throw conflict('Conta com movimentação não pode ser excluída — inative-a.');

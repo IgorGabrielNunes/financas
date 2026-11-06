@@ -52,6 +52,8 @@ export type Meio = 'debito' | 'credito' | 'pix' | 'dinheiro' | 'boleto' | 'trans
 export type Conta = {
   id: string; nome: string; tipo: string; saldo_inicial_centavos: number; saldo_centavos: number; cor: string; ativa: boolean;
   pessoa_id: string | null; pessoa_nome?: string | null; cartao_debito: boolean;
+  /** investimentos que estão nesta conta (não somam no saldo) e o que saiu dela para metas */
+  investido_centavos?: number; qtd_investimentos?: number; guardado_metas_centavos?: number; conta_no_disponivel?: boolean;
 };
 export type Categoria = { id: string; nome: string; tipo: 'receita' | 'despesa'; cor: string };
 export type Fatura = {

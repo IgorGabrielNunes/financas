@@ -4,10 +4,14 @@ import { competencia, diaNoMes, hojeSP, mesDe, somarMeses, ultimoDia, type Mes }
 import { materializarJanela, materializarMes } from './recorrencias.js';
 import { listarDividas, listarInadimplencias } from '../rotas/pessoas.js';
 import { garantirVinculos } from './trabalho.js';
+import { carregarInvestimentos, listarMetas, totaisInvestimentos } from './investimentos.js';
 
 // ---------------------------------------------------------------------------
 // Saldos de contas
 // saldo = inicial + receitas realizadas − despesas realizadas (fora do crédito) − pagamentos de fatura
+//         − aportes em investimentos + resgates − guardado em metas + retirado de metas
+// O dinheiro aplicado/guardado NÃO é saldo da conta (não entra no disponível) e também não é despesa:
+// aparece à parte em `investido_centavos` (investimentos que estão nesta conta) e `guardado_metas_centavos`.
 // ---------------------------------------------------------------------------
 export async function contasComSaldo(c: PoolClient, userId: string) {
   const { rows } = await c.query(
@@ -17,12 +21,26 @@ export async function contasComSaldo(c: PoolClient, userId: string) {
                      from lancamentos l
                     where l.conta_id = ct.id and l.status = 'realizado' and l.meio <> 'credito'), 0)
        - coalesce((select sum(f.valor_pago_centavos) from faturas f where f.conta_pagamento_id = ct.id), 0)
+       - coalesce((select sum(case when m.tipo = 'aporte' then m.valor_centavos else -m.valor_centavos end)
+                     from investimentos_movimentos m where m.conta_id = ct.id), 0)
+       - coalesce((select sum(mm.valor_centavos) from metas_movimentos mm where mm.conta_id = ct.id), 0)
        as saldo_centavos,
+       coalesce((select sum(mm.valor_centavos) from metas_movimentos mm where mm.conta_id = ct.id), 0)::bigint as guardado_metas_centavos,
        (select nome from pessoas p where p.id = ct.pessoa_id) as pessoa_nome
      from contas ct where ct.casa_id = $1 order by ct.ativa desc, ct.nome`,
     [userId],
   );
-  return rows;
+  const invs = await carregarInvestimentos(c, userId);
+  return rows.map((ct) => {
+    const daqui = invs.filter((i) => i.ativo && i.conta_id === ct.id);
+    return {
+      ...ct,
+      investido_centavos: daqui.reduce((s, i) => s + i.posicao.saldo_bruto_centavos, 0),
+      qtd_investimentos: daqui.length,
+      // conta do tipo "investimento" (reserva) não é dinheiro disponível para o dia a dia
+      conta_no_disponivel: ct.tipo !== 'investimento',
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -101,7 +119,11 @@ export async function dashboard(c: PoolClient, userId: string) {
   await materializarJanela(c, userId, mesAtual, 6);
 
   const contas = await contasComSaldo(c, userId);
-  const saldoContas = contas.filter((x) => x.ativa).reduce((s, x) => s + x.saldo_centavos, 0);
+  // contas de investimento/reserva ficam fora do disponível: são patrimônio, não dinheiro do mês
+  const saldoContas = contas.filter((x) => x.ativa && x.conta_no_disponivel).reduce((s, x) => s + x.saldo_centavos, 0);
+  const reservasContas = contas.filter((x) => x.ativa && !x.conta_no_disponivel).reduce((s, x) => s + x.saldo_centavos, 0);
+  const invs = await carregarInvestimentos(c, userId);
+  const metas = (await listarMetas(c, userId, invs)).filter((m) => !m.arquivada);
 
   // Horizonte = próxima receita prevista (normalmente o salário). Sem receita prevista: fim do mês.
   const prox = await c.query<{ data: string; descricao: string }>(
@@ -194,6 +216,15 @@ export async function dashboard(c: PoolClient, userId: string) {
       faturas: faturasAteHorizonte,
     },
     contas,
+    patrimonio: {
+      investimentos: totaisInvestimentos(invs),
+      contas_reserva_centavos: reservasContas,
+      metas_guardado_centavos: metas.reduce((s, m) => s + m.guardado_centavos - m.em_investimentos_centavos, 0),
+      metas: metas.filter((m) => !m.concluida).slice(0, 3).map((m) => ({
+        id: m.id, nome: m.nome, tipo: m.tipo, icone: m.icone, cor: m.cor, pct: m.pct,
+        guardado_centavos: m.guardado_centavos, valor_alvo_centavos: m.valor_alvo_centavos, data_alvo: m.data_alvo,
+      })),
+    },
     cartoes: cartoes.map((ca) => ({
       ...ca,
       // quanto dá para passar no cartão sem estourar nem o limite nem o caixa real

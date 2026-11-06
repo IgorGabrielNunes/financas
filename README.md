@@ -203,6 +203,21 @@ Finanças → **Importar fatura** (ou o botão na tela do cartão/fatura). Escol
 - **Desfazer:** cada importação é um lote e o histórico mostra o botão *Desfazer*. Ele fica bloqueado se alguma fatura do lote já tiver pagamento registrado.
 - PDF não é suportado. O texto de fatura em PDF varia demais entre bancos para ser confiável.
 
+## Metas e investimentos
+
+**Metas** (Finanças → Metas): viagem, cofrinho, reserva, compra… com o nome, ícone e cor que quiser, valor alvo e data opcional.
+- *Guardar* tira o valor do saldo da conta escolhida (sai do disponível) **sem virar despesa**; *Retirar* devolve. Dá para registrar valor que já estava separado sem mexer em conta.
+- Investimentos ligados à meta somam no progresso. O "guarde R$ X/mês" considera o rendimento líquido deles.
+
+**Investimentos** (Finanças → Investimentos): CDB, LCI/LCA, Tesouro Selic/IPCA+/Prefixado, poupança, caixinha, fundo DI, ações/FII/cripto.
+- Cada aplicação fica **ligada à conta onde o dinheiro está** (banco/corretora). Na Carteira aparece como "+ R$ X investido", **sem somar no saldo nem no disponível**. Contas do tipo *investimento/reserva* também ficam fora do disponível.
+- Aporte sai de uma conta e resgate volta para uma conta (ou nenhuma). Nada disso vira receita ou despesa do mês.
+- Rendimento estimado pelo modelo atual de cada aplicação: % do CDI/Selic sobre a taxa diária, IPCA + taxa, prefixado, regra da poupança. Usa dias úteis (feriados nacionais), IR regressivo por aporte (22,5% → 15%) e IOF nos primeiros 30 dias. Resgates saem dos aportes mais antigos.
+- *Informar saldo* (o que o app do banco mostra) corrige a estimativa. A partir dali o rendimento é o real e segue estimado.
+- **Simulador**: valor inicial + aporte mensal + prazo, comparando 8 opções típicas (editáveis, dá para criar as suas) contra o seu modelo atual. Mostra o valor líquido, a taxa líquida ao ano e a diferença em reais.
+- Taxas de referência (CDI, Selic, IPCA 12m, TR) vêm da API pública do Banco Central (SGS, séries 4389/432/13522/226), atualizadas a cada 12 h, com fallback para o último valor. Também podem ser ajustadas à mão.
+- Limitações: aplica as taxas de hoje ao período todo (é estimativa). Não considera a taxa de custódia da B3, o come-cotas de fundos nem a marcação a mercado de títulos vendidos antes do vencimento. Renda variável não tem projeção, só o saldo informado.
+
 ## Regras de domínio (backend/src/domain/fatura.ts — testadas)
 
 | Regra | Decisão |
